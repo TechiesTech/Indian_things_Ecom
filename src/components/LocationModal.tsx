@@ -73,7 +73,7 @@ export const LocationModal: React.FC = () => {
               value={inputPincode}
               onChange={(e) => setInputPincode(e.target.value)}
               placeholder="e.g. 500062"
-              className="flex-1 rounded-lg border border-slate-300 p-2 text-xs font-mono font-bold text-slate-800 focus:border-amber-400 focus:outline-none"
+              className="flex-1 rounded-lg border border-slate-300 p-2 text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
             />
             <button
               type="submit"

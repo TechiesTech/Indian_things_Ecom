@@ -44,6 +44,7 @@ export const CheckoutModal: React.FC = () => {
     deleteAddress,
     placeOrder,
     setIsOrdersModalOpen,
+    paymentMethods,
   } = useCart();
 
   // Step state: 1 = Address Gateway, 2 = Payment Gateway, 3 = Order Confirmed
@@ -70,7 +71,8 @@ export const CheckoutModal: React.FC = () => {
   const [deliverySpeed, setDeliverySpeed] = useState<'express' | 'standard'>('express');
 
   // Payment method selection
-  const [paymentMethod, setPaymentMethod] = useState<'sbi_card' | 'upi' | 'card' | 'netbanking' | 'cod'>('sbi_card');
+  const [paymentMethod, setPaymentMethod] = useState<'sbi_card' | 'upi' | 'card' | 'netbanking' | 'cod' | 'saved'>('sbi_card');
+  const [selectedSavedPaymentId, setSelectedSavedPaymentId] = useState<string | null>(null);
 
   // Specific payment inputs
   const [upiId, setUpiId] = useState('rahul.sharma@okaxis');
@@ -95,6 +97,12 @@ export const CheckoutModal: React.FC = () => {
     0,
     finalTotal - (isSbiDiscountActive ? sbiCardDiscount : 0)
   );
+
+  // Get default saved payment method for pre-selection
+  const defaultSavedPayment = paymentMethods.find(m => m.isDefault);
+  if (defaultSavedPayment && !selectedSavedPaymentId && paymentMethod === 'saved') {
+    setSelectedSavedPaymentId(defaultSavedPayment.id);
+  }
 
   const handleAddNewAddressSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,7 +159,18 @@ export const CheckoutModal: React.FC = () => {
     setIsProcessingPayment(true);
 
     let methodLabel = 'SBI Credit Card (10% Discount Applied)';
-    if (paymentMethod === 'upi') {
+    if (paymentMethod === 'saved' && selectedSavedPaymentId) {
+      const savedMethod = paymentMethods.find(m => m.id === selectedSavedPaymentId);
+      if (savedMethod) {
+        if (savedMethod.type === 'card') {
+          methodLabel = `Saved Card (•••• ${savedMethod.cardNumber?.slice(-4)})`;
+        } else if (savedMethod.type === 'upi') {
+          methodLabel = `Saved UPI (${savedMethod.upiId})`;
+        } else if (savedMethod.type === 'netbanking') {
+          methodLabel = `Saved Net Banking (${savedMethod.bankName})`;
+        }
+      }
+    } else if (paymentMethod === 'upi') {
       methodLabel = `UPI (${selectedUpiApp === 'id' ? upiId : selectedUpiApp.toUpperCase()})`;
     } else if (paymentMethod === 'card') {
       methodLabel = `Credit/Debit Card (ending in ${cardNumber.slice(-4)})`;
@@ -351,7 +370,7 @@ export const CheckoutModal: React.FC = () => {
                           value={newAddr.fullName}
                           onChange={(e) => setNewAddr({ ...newAddr, fullName: e.target.value })}
                           placeholder="e.g. Rahul Sharma"
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:border-amber-400 focus:outline-none"
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                         />
                       </div>
                       <div>
@@ -362,7 +381,7 @@ export const CheckoutModal: React.FC = () => {
                           value={newAddr.phone}
                           onChange={(e) => setNewAddr({ ...newAddr, phone: e.target.value })}
                           placeholder="9876543210"
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:border-amber-400 focus:outline-none"
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -375,7 +394,7 @@ export const CheckoutModal: React.FC = () => {
                           required
                           value={newAddr.pincode}
                           onChange={(e) => setNewAddr({ ...newAddr, pincode: e.target.value })}
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:border-amber-400 focus:outline-none"
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                         />
                       </div>
                       <div>
@@ -385,7 +404,7 @@ export const CheckoutModal: React.FC = () => {
                           required
                           value={newAddr.city}
                           onChange={(e) => setNewAddr({ ...newAddr, city: e.target.value })}
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:border-amber-400 focus:outline-none"
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                         />
                       </div>
                       <div>
@@ -395,7 +414,7 @@ export const CheckoutModal: React.FC = () => {
                           required
                           value={newAddr.state}
                           onChange={(e) => setNewAddr({ ...newAddr, state: e.target.value })}
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:border-amber-400 focus:outline-none"
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -410,7 +429,7 @@ export const CheckoutModal: React.FC = () => {
                         value={newAddr.houseFlat}
                         onChange={(e) => setNewAddr({ ...newAddr, houseFlat: e.target.value })}
                         placeholder="Flat 402, Sai Residency"
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:border-amber-400 focus:outline-none"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                       />
                     </div>
 
@@ -424,7 +443,7 @@ export const CheckoutModal: React.FC = () => {
                         value={newAddr.streetArea}
                         onChange={(e) => setNewAddr({ ...newAddr, streetArea: e.target.value })}
                         placeholder="Near ECIL Cross Roads, A.S. Rao Nagar"
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:border-amber-400 focus:outline-none"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                       />
                     </div>
 
@@ -435,7 +454,7 @@ export const CheckoutModal: React.FC = () => {
                         value={newAddr.landmark}
                         onChange={(e) => setNewAddr({ ...newAddr, landmark: e.target.value })}
                         placeholder="e.g. Opposite Heritage Supermarket"
-                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:border-amber-400 focus:outline-none"
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                       />
                     </div>
 
@@ -664,7 +683,7 @@ export const CheckoutModal: React.FC = () => {
 
                   <button
                     onClick={handleProceedToPayment}
-                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400 py-3 text-sm font-bold text-slate-950 hover:bg-amber-500 shadow-md transition-all active:scale-[0.98]"
+                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400 py-3 text-sm font-bold text-slate-950 hover:bg-amber-500 shadow-md transition-all active:scale-95"
                   >
                     <span>Proceed to Payment</span>
                     <ArrowRight className="h-4 w-4" />
@@ -695,6 +714,62 @@ export const CheckoutModal: React.FC = () => {
                 <h3 className="text-base font-bold text-slate-900">
                   Select a Payment Gateway Method
                 </h3>
+
+                {/* Saved Payment Methods Section */}
+                {paymentMethods.length > 0 && (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50/40 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle2 className="h-4 w-4 text-sky-600" />
+                      <span className="text-xs font-bold text-slate-900">Your Saved Payment Methods</span>
+                    </div>
+                    <div className="space-y-2">
+                      {paymentMethods.map((method) => (
+                        <div
+                          key={method.id}
+                          onClick={() => {
+                            setPaymentMethod('saved');
+                            setSelectedSavedPaymentId(method.id);
+                          }}
+                          className={`cursor-pointer rounded-lg border p-3 text-xs transition-all ${
+                            paymentMethod === 'saved' && selectedSavedPaymentId === method.id
+                              ? 'border-sky-500 bg-sky-100/50 ring-2 ring-sky-400/50'
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="savedPayment"
+                                checked={paymentMethod === 'saved' && selectedSavedPaymentId === method.id}
+                                onChange={() => {
+                                  setPaymentMethod('saved');
+                                  setSelectedSavedPaymentId(method.id);
+                                }}
+                                className="accent-sky-600"
+                              />
+                              <div className="flex items-center gap-2">
+                                {method.type === 'card' && <CreditCard className="h-4 w-4 text-slate-600" />}
+                                {method.type === 'upi' && <Smartphone className="h-4 w-4 text-slate-600" />}
+                                {method.type === 'netbanking' && <Building2 className="h-4 w-4 text-slate-600" />}
+                                <span className="font-semibold text-slate-900">
+                                  {method.type === 'card' 
+                                    ? `•••• ${method.cardNumber?.slice(-4)}` 
+                                    : method.type === 'upi' 
+                                    ? method.upiId 
+                                    : `${method.bankName} •••• ${method.accountLast4}`}
+                                </span>
+                              </div>
+                            </div>
+                            {method.isDefault && (
+                              <span className="text-[10px] font-semibold text-sky-700 bg-sky-100 px-2 py-0.5 rounded">Default</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Payment Option 1: SBI Card (Promotional & Recommended) */}
                 <div
@@ -860,7 +935,7 @@ export const CheckoutModal: React.FC = () => {
                             value={upiId}
                             onChange={(e) => setUpiId(e.target.value)}
                             placeholder="e.g. yourname@okhdfcbank"
-                            className="flex-1 rounded-lg border border-slate-300 p-2 text-xs font-semibold focus:border-amber-400 focus:outline-none"
+                            className="flex-1 rounded-lg border border-slate-300 p-2 text-xs font-semibold focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                           />
                           <button
                             type="button"
@@ -1063,7 +1138,7 @@ export const CheckoutModal: React.FC = () => {
                   <button
                     onClick={handlePlaceOrderAndPay}
                     disabled={isProcessingPayment}
-                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400 py-3.5 text-sm font-bold text-slate-950 hover:bg-amber-500 shadow-md transition-all active:scale-[0.98] disabled:opacity-75 cursor-pointer"
+                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400 py-3.5 text-sm font-bold text-slate-950 hover:bg-amber-500 shadow-md transition-all active:scale-95 disabled:opacity-75 cursor-pointer"
                   >
                     {isProcessingPayment ? (
                       <div className="flex items-center gap-2">

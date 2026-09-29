@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, Address, INITIAL_ADDRESSES, PlacedOrder, OrderItem } from '../data/products';
+import { Product, Address, INITIAL_ADDRESSES, PlacedOrder, OrderItem, PaymentMethod, INITIAL_PAYMENT_METHODS, UserProfile, INITIAL_USER_PROFILE } from '../data/products';
 
 export interface CartItem {
   product: Product;
@@ -42,8 +42,8 @@ interface CartContextType {
   setIsOrdersModalOpen: (open: boolean) => void;
   isAccountModalOpen: boolean;
   setIsAccountModalOpen: (open: boolean) => void;
-  accountActiveTab: 'orders' | 'addresses' | 'support' | 'returns';
-  setAccountActiveTab: (tab: 'orders' | 'addresses' | 'support' | 'returns') => void;
+  accountActiveTab: 'orders' | 'addresses' | 'support' | 'returns' | 'payments';
+  setAccountActiveTab: (tab: 'orders' | 'addresses' | 'support' | 'returns' | 'payments') => void;
 
   // Selected Product Detail Modal
   viewingProduct: Product | null;
@@ -69,6 +69,18 @@ interface CartContextType {
   orders: PlacedOrder[];
   placeOrder: (paymentMethod: string, address: Address) => PlacedOrder;
   requestOrderReturn: (orderId: string, reason: string) => void;
+
+  // Payment Methods
+  paymentMethods: PaymentMethod[];
+  addPaymentMethod: (method: Omit<PaymentMethod, 'id'>) => PaymentMethod;
+  deletePaymentMethod: (id: string) => void;
+  setDefaultPaymentMethod: (id: string) => void;
+  editingPaymentMethod: PaymentMethod | null;
+  setEditingPaymentMethod: (method: PaymentMethod | null) => void;
+
+  // User Profile
+  userProfile: UserProfile;
+  updateUserProfile: (updates: Partial<UserProfile>) => void;
 
   // Toasts
   toast: ToastMessage | null;
@@ -104,6 +116,27 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
 
+  // Payment Methods
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(() => {
+    try {
+      const saved = localStorage.getItem('it_payment_methods');
+      return saved ? JSON.parse(saved) : INITIAL_PAYMENT_METHODS;
+    } catch {
+      return INITIAL_PAYMENT_METHODS;
+    }
+  });
+  const [editingPaymentMethod, setEditingPaymentMethod] = useState<PaymentMethod | null>(null);
+
+  // User Profile
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    try {
+      const saved = localStorage.getItem('it_user_profile');
+      return saved ? JSON.parse(saved) : INITIAL_USER_PROFILE;
+    } catch {
+      return INITIAL_USER_PROFILE;
+    }
+  });
+
   // Current Pincode & City
   const [currentPincode, setCurrentPincode] = useState<string>('500062');
   const [currentCity, setCurrentCity] = useState<string>('Hyderabad');
@@ -126,7 +159,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               productId: 'prod-state-rajasthan-1',
               name: 'Jaipur Blue Pottery Handcrafted Ceramic Jar & Decorative Vase Set',
               price: 699,
-              image: '/src/assets/images/state_jaipur_blue_pottery_1790340501420.jpg',
+              image: '/assets/images/state_jaipur_blue_pottery_1790340501420.jpg',
               quantity: 1,
               variant: 'Cobalt Royal Floral',
             },
@@ -134,7 +167,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
               productId: 'prod-state-assam-1',
               name: 'Assam Golden Tips Single-Estate Orthodox Black Tea & Spices',
               price: 349,
-              image: '/src/assets/images/state_assam_tea_spices_1790340524957.jpg',
+              image: '/assets/images/state_assam_tea_spices_1790340524957.jpg',
               quantity: 1,
               variant: '250g Festive Tin',
             },
@@ -186,7 +219,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isOrdersModalOpen, setIsOrdersModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
-  const [accountActiveTab, setAccountActiveTab] = useState<'orders' | 'addresses' | 'support' | 'returns'>('orders');
+  const [accountActiveTab, setAccountActiveTab] = useState<'orders' | 'addresses' | 'support' | 'returns' | 'payments'>('orders');
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
 
   // Coupons
@@ -221,6 +254,24 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error(e);
     }
   }, [orders]);
+
+  // Sync payment methods to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('it_payment_methods', JSON.stringify(paymentMethods));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [paymentMethods]);
+
+  // Sync user profile to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('it_user_profile', JSON.stringify(userProfile));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [userProfile]);
 
   const showToast = (title: string, description: string, image?: string) => {
     const id = Date.now().toString();
@@ -478,6 +529,44 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     showToast('Return Initiated', 'Courier pickup scheduled within 48 hours with full refund');
   };
 
+  // Payment Methods CRUD
+  const addPaymentMethod = (newMethodData: Omit<PaymentMethod, 'id'>) => {
+    const id = `pm-${Date.now()}`;
+    const newMethod: PaymentMethod = { ...newMethodData, id };
+    const updated = [newMethod, ...paymentMethods.map((m) => (newMethod.isDefault ? { ...m, isDefault: false } : m))];
+    setPaymentMethods(updated);
+    showToast('Payment Method Added', `${newMethod.type === 'card' ? 'Card' : newMethod.type === 'upi' ? 'UPI' : 'Net Banking'} saved successfully`);
+    return newMethod;
+  };
+
+  const deletePaymentMethod = (id: string) => {
+    if (paymentMethods.length <= 1) {
+      showToast('Action Denied', 'At least one payment method must be kept');
+      return;
+    }
+    const filtered = paymentMethods.filter((m) => m.id !== id);
+    setPaymentMethods(filtered);
+    showToast('Payment Method Removed', 'Payment method deleted successfully');
+  };
+
+  const setDefaultPaymentMethod = (id: string) => {
+    setPaymentMethods((prev) =>
+      prev.map((m) => ({
+        ...m,
+        isDefault: m.id === id,
+      }))
+    );
+    const found = paymentMethods.find((m) => m.id === id);
+    if (found) {
+      showToast('Default Payment Set', `${found.type === 'card' ? 'Card' : found.type === 'upi' ? 'UPI' : 'Net Banking'} set as default`);
+    }
+  };
+
+  const updateUserProfile = (updates: Partial<UserProfile>) => {
+    setUserProfile((prev) => ({ ...prev, ...updates }));
+    showToast('Profile Updated', 'Your profile information has been updated successfully');
+  };
+
   return (
     <CartContext.Provider
       value={{
@@ -525,6 +614,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         orders,
         placeOrder,
         requestOrderReturn,
+        paymentMethods,
+        addPaymentMethod,
+        deletePaymentMethod,
+        setDefaultPaymentMethod,
+        editingPaymentMethod,
+        setEditingPaymentMethod,
+        userProfile,
+        updateUserProfile,
         toast,
         dismissToast,
       }}

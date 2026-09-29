@@ -20,9 +20,12 @@ import {
   HelpCircle,
   ExternalLink,
   ChevronRight,
+  CreditCard,
+  Smartphone,
+  Building2,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { Address } from '../data/products';
+import { Address, PaymentMethod, UserProfile } from '../data/products';
 
 export const AccountModal: React.FC = () => {
   const {
@@ -37,6 +40,12 @@ export const AccountModal: React.FC = () => {
     deleteAddress,
     setDefaultAddress,
     requestOrderReturn,
+    paymentMethods,
+    addPaymentMethod,
+    deletePaymentMethod,
+    setDefaultPaymentMethod,
+    userProfile,
+    updateUserProfile,
   } = useCart();
 
   // Address editing state
@@ -64,6 +73,34 @@ export const AccountModal: React.FC = () => {
   // Return request modal state
   const [returnOrderId, setReturnOrderId] = useState<string | null>(null);
   const [returnReason, setReturnReason] = useState('Damaged during transit / Item mismatch');
+
+  // Payment method form state
+  const [isAddingPaymentMethod, setIsAddingPaymentMethod] = useState(false);
+  const [editingPaymentMethodId, setEditingPaymentMethodId] = useState<string | null>(null);
+  const [paymentForm, setPaymentForm] = useState({
+    type: 'card' as 'card' | 'upi' | 'netbanking',
+    isDefault: false,
+    cardNumber: '',
+    cardHolder: '',
+    cardExpiry: '',
+    cardType: 'visa' as 'visa' | 'mastercard' | 'rupay' | 'amex',
+    upiId: '',
+    upiApp: 'gpay' as 'gpay' | 'phonepe' | 'paytm',
+    bankName: 'sbi',
+    accountLast4: '',
+  });
+  const [paymentFormError, setPaymentFormError] = useState('');
+
+  // User Profile form state
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    fullName: userProfile.fullName,
+    email: userProfile.email,
+    phone: userProfile.phone,
+    dateOfBirth: userProfile.dateOfBirth || '',
+    gender: userProfile.gender || 'male',
+  });
+  const [preferencesForm, setPreferencesForm] = useState(userProfile.preferences);
 
   if (!isAccountModalOpen) return null;
 
@@ -139,6 +176,101 @@ export const AccountModal: React.FC = () => {
     setReturnOrderId(null);
   };
 
+  // Payment method handlers
+  const handleStartAddPaymentMethod = () => {
+    setIsAddingPaymentMethod(true);
+    setEditingPaymentMethodId(null);
+    setPaymentForm({
+      type: 'card',
+      isDefault: paymentMethods.length === 0,
+      cardNumber: '',
+      cardHolder: '',
+      cardExpiry: '',
+      cardType: 'visa',
+      upiId: '',
+      upiApp: 'gpay',
+      bankName: 'sbi',
+      accountLast4: '',
+    });
+    setPaymentFormError('');
+  };
+
+  const handleStartEditPaymentMethod = (method: PaymentMethod) => {
+    setIsAddingPaymentMethod(true);
+    setEditingPaymentMethodId(method.id);
+    setPaymentForm({
+      type: method.type,
+      isDefault: method.isDefault,
+      cardNumber: method.cardNumber || '',
+      cardHolder: method.cardHolder || '',
+      cardExpiry: method.cardExpiry || '',
+      cardType: method.cardType || 'visa',
+      upiId: method.upiId || '',
+      upiApp: method.upiApp || 'gpay',
+      bankName: method.bankName || 'sbi',
+      accountLast4: method.accountLast4 || '',
+    });
+    setPaymentFormError('');
+  };
+
+  const handleSavePaymentMethod = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (paymentForm.type === 'card') {
+      if (!paymentForm.cardNumber.trim() || !paymentForm.cardHolder.trim() || !paymentForm.cardExpiry.trim()) {
+        setPaymentFormError('Please fill in all card details.');
+        return;
+      }
+      if (paymentForm.cardNumber.replace(/\D/g, '').length < 16) {
+        setPaymentFormError('Please enter a valid 16-digit card number.');
+        return;
+      }
+    } else if (paymentForm.type === 'upi') {
+      if (!paymentForm.upiId.trim() || !paymentForm.upiId.includes('@')) {
+        setPaymentFormError('Please enter a valid UPI ID (e.g., name@bank).');
+        return;
+      }
+    } else if (paymentForm.type === 'netbanking') {
+      if (!paymentForm.bankName || !paymentForm.accountLast4) {
+        setPaymentFormError('Please select bank and enter account details.');
+        return;
+      }
+    }
+
+    if (editingPaymentMethodId) {
+      // Update existing payment method
+      // For simplicity, we'll delete and re-add
+      deletePaymentMethod(editingPaymentMethodId);
+    }
+    
+    addPaymentMethod(paymentForm);
+    setIsAddingPaymentMethod(false);
+    setEditingPaymentMethodId(null);
+    setPaymentFormError('');
+  };
+
+  // User Profile handlers
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateUserProfile({
+      ...profileForm,
+      preferences: preferencesForm,
+    });
+    setIsEditingProfile(false);
+  };
+
+  const handleCancelProfileEdit = () => {
+    setProfileForm({
+      fullName: userProfile.fullName,
+      email: userProfile.email,
+      phone: userProfile.phone,
+      dateOfBirth: userProfile.dateOfBirth || '',
+      gender: userProfile.gender || 'male',
+    });
+    setPreferencesForm(userProfile.preferences);
+    setIsEditingProfile(false);
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-sm"
@@ -152,29 +284,162 @@ export const AccountModal: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-800 bg-[#131921] px-5 py-4 text-white">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 font-bold text-slate-950 text-base shadow">
-              RS
+              {userProfile.fullName.split(' ').map(n => n[0]).join('').toUpperCase()}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-white">Rahul Sharma</h3>
-                <span className="rounded bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-400/40">
-                  Prime Member
+                <h3 className="text-base font-bold text-white">{userProfile.fullName}</h3>
+                <span className={`rounded px-2 py-0.5 text-[10px] font-bold border ${
+                  userProfile.membershipLevel === 'prime' 
+                    ? 'bg-amber-400/20 text-amber-300 border-amber-400/40' 
+                    : userProfile.membershipLevel === 'premium'
+                    ? 'bg-purple-400/20 text-purple-300 border-purple-400/40'
+                    : 'bg-slate-400/20 text-slate-300 border-slate-400/40'
+                }`}>
+                  {userProfile.membershipLevel === 'prime' ? 'Prime Member' : userProfile.membershipLevel === 'premium' ? 'Premium' : 'Standard'}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                rahul.sharma@example.com · +91 98765 43210 · Member since 2021
+                {userProfile.email} · +91 {userProfile.phone} · Member since {userProfile.memberSince}
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => setIsAccountModalOpen(false)}
-            className="self-end sm:self-auto rounded-full p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
-            aria-label="Close modal"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2 mt-3 sm:mt-0">
+            <button
+              onClick={() => setIsEditingProfile(!isEditingProfile)}
+              className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 hover:text-white"
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+              <span>{isEditingProfile ? 'Cancel' : 'Edit Profile'}</span>
+            </button>
+            <button
+              onClick={() => setIsAccountModalOpen(false)}
+              className="rounded-full p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+              aria-label="Close modal"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
+
+        {/* Profile Edit Form (shows when editing) */}
+        {isEditingProfile && (
+          <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700">Full Name</label>
+                  <input
+                    type="text"
+                    value={profileForm.fullName}
+                    onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700">Email</label>
+                  <input
+                    type="email"
+                    value={profileForm.email}
+                    onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700">Phone</label>
+                  <input
+                    type="tel"
+                    value={profileForm.phone}
+                    onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700">Date of Birth</label>
+                  <input
+                    type="text"
+                    value={profileForm.dateOfBirth}
+                    onChange={(e) => setProfileForm({ ...profileForm, dateOfBirth: e.target.value })}
+                    placeholder="DD-MM-YYYY"
+                    className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700">Gender</label>
+                <div className="mt-1 flex gap-4">
+                  {['male', 'female', 'other'].map((gender) => (
+                    <label key={gender} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                      <input
+                        type="radio"
+                        name="gender"
+                        checked={profileForm.gender === gender}
+                        onChange={() => setProfileForm({ ...profileForm, gender: gender as any })}
+                      />
+                      <span className="capitalize">{gender}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-slate-200 pt-4">
+                <h4 className="text-xs font-bold text-slate-900 mb-3">Notification Preferences</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={preferencesForm.emailNotifications}
+                      onChange={(e) => setPreferencesForm({ ...preferencesForm, emailNotifications: e.target.checked })}
+                    />
+                    <span>Email Notifications</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={preferencesForm.smsNotifications}
+                      onChange={(e) => setPreferencesForm({ ...preferencesForm, smsNotifications: e.target.checked })}
+                    />
+                    <span>SMS Notifications</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={preferencesForm.promotionalOffers}
+                      onChange={(e) => setPreferencesForm({ ...preferencesForm, promotionalOffers: e.target.checked })}
+                    />
+                    <span>Promotional Offers</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={preferencesForm.orderUpdates}
+                      onChange={(e) => setPreferencesForm({ ...preferencesForm, orderUpdates: e.target.checked })}
+                    />
+                    <span>Order Updates</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  className="rounded-lg bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-xs"
+                >
+                  Save Changes
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelProfileEdit}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Tab Navigation Ribbon */}
         <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-600 no-scrollbar">
@@ -224,6 +489,18 @@ export const AccountModal: React.FC = () => {
           >
             <RotateCcw className="h-4 w-4 text-rose-600" />
             <span>Return Policy &amp; Replacement</span>
+          </button>
+
+          <button
+            onClick={() => setAccountActiveTab('payments')}
+            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${
+              accountActiveTab === 'payments'
+                ? 'border-amber-500 text-amber-900 bg-white font-black'
+                : 'border-transparent hover:text-slate-900'
+            }`}
+          >
+            <CreditCard className="h-4 w-4 text-sky-600" />
+            <span>Payment Methods ({paymentMethods.length})</span>
           </button>
         </div>
 
@@ -414,7 +691,7 @@ export const AccountModal: React.FC = () => {
                         required
                         value={addrForm.fullName}
                         onChange={(e) => setAddrForm({ ...addrForm, fullName: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                       />
                     </div>
                     <div>
@@ -424,7 +701,7 @@ export const AccountModal: React.FC = () => {
                         required
                         value={addrForm.phone}
                         onChange={(e) => setAddrForm({ ...addrForm, phone: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                       />
                     </div>
                   </div>
@@ -437,7 +714,7 @@ export const AccountModal: React.FC = () => {
                         required
                         value={addrForm.pincode}
                         onChange={(e) => setAddrForm({ ...addrForm, pincode: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                       />
                     </div>
                     <div>
@@ -447,7 +724,7 @@ export const AccountModal: React.FC = () => {
                         required
                         value={addrForm.city}
                         onChange={(e) => setAddrForm({ ...addrForm, city: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                       />
                     </div>
                     <div>
@@ -457,7 +734,7 @@ export const AccountModal: React.FC = () => {
                         required
                         value={addrForm.state}
                         onChange={(e) => setAddrForm({ ...addrForm, state: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                       />
                     </div>
                   </div>
@@ -469,7 +746,7 @@ export const AccountModal: React.FC = () => {
                       required
                       value={addrForm.houseFlat}
                       onChange={(e) => setAddrForm({ ...addrForm, houseFlat: e.target.value })}
-                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                     />
                   </div>
 
@@ -480,7 +757,7 @@ export const AccountModal: React.FC = () => {
                       required
                       value={addrForm.streetArea}
                       onChange={(e) => setAddrForm({ ...addrForm, streetArea: e.target.value })}
-                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                     />
                   </div>
 
@@ -491,7 +768,7 @@ export const AccountModal: React.FC = () => {
                       value={addrForm.landmark || ''}
                       onChange={(e) => setAddrForm({ ...addrForm, landmark: e.target.value })}
                       placeholder="e.g. Near Metro Station / Opposite Bank"
-                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                     />
                   </div>
 
@@ -678,7 +955,7 @@ export const AccountModal: React.FC = () => {
                       value={supportMessage}
                       onChange={(e) => setSupportMessage(e.target.value)}
                       placeholder="e.g. Please help me check expedited delivery status for my order..."
-                      className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-xs text-slate-900 focus:border-amber-400 focus:outline-none"
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-xs text-slate-900 focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                     />
                   </div>
 
@@ -808,6 +1085,332 @@ export const AccountModal: React.FC = () => {
                     );
                   })}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 5: PAYMENT METHODS ================= */}
+          {accountActiveTab === 'payments' && (
+            <div className="space-y-5 max-w-3xl mx-auto">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">
+                    Saved Payment Methods ({paymentMethods.length})
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Manage your cards, UPI IDs, and bank accounts for faster checkout.
+                  </p>
+                </div>
+                {!isAddingPaymentMethod && (
+                  <button
+                    onClick={handleStartAddPaymentMethod}
+                    className="flex items-center gap-1.5 rounded-lg bg-sky-500 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-sky-600 shadow-xs"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Add Payment Method</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Add / Edit Payment Method Form */}
+              {isAddingPaymentMethod && (
+                <form
+                  onSubmit={handleSavePaymentMethod}
+                  className="rounded-xl border-2 border-sky-400 bg-sky-50/40 p-5 shadow-md space-y-4"
+                >
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-sky-900">
+                      {editingPaymentMethodId ? 'Edit Payment Method' : 'Add New Payment Method'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingPaymentMethod(false);
+                        setEditingPaymentMethodId(null);
+                      }}
+                      className="text-xs text-slate-500 hover:text-slate-800 underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  {paymentFormError && (
+                    <div className="rounded bg-rose-100 p-2 text-xs text-rose-800 flex items-center gap-1.5">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>{paymentFormError}</span>
+                    </div>
+                  )}
+
+                  {/* Payment Type Selection */}
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700">Payment Type</label>
+                    <div className="mt-2 flex gap-3">
+                      <label className="flex items-center gap-2 text-xs cursor-pointer">
+                        <input
+                          type="radio"
+                          name="paymentType"
+                          checked={paymentForm.type === 'card'}
+                          onChange={() => setPaymentForm({ ...paymentForm, type: 'card' })}
+                        />
+                        <CreditCard className="h-4 w-4 text-slate-600" />
+                        <span>Credit/Debit Card</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs cursor-pointer">
+                        <input
+                          type="radio"
+                          name="paymentType"
+                          checked={paymentForm.type === 'upi'}
+                          onChange={() => setPaymentForm({ ...paymentForm, type: 'upi' })}
+                        />
+                        <Smartphone className="h-4 w-4 text-slate-600" />
+                        <span>UPI</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs cursor-pointer">
+                        <input
+                          type="radio"
+                          name="paymentType"
+                          checked={paymentForm.type === 'netbanking'}
+                          onChange={() => setPaymentForm({ ...paymentForm, type: 'netbanking' })}
+                        />
+                        <Building2 className="h-4 w-4 text-slate-600" />
+                        <span>Net Banking</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Card Details */}
+                  {paymentForm.type === 'card' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">Card Number *</label>
+                        <input
+                          type="text"
+                          required
+                          value={paymentForm.cardNumber}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, cardNumber: e.target.value })}
+                          placeholder="1234 5678 9012 3456"
+                          className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs font-mono focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:outline-none"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-semibold text-slate-700">Card Holder Name *</label>
+                          <input
+                            type="text"
+                            required
+                            value={paymentForm.cardHolder}
+                            onChange={(e) => setPaymentForm({ ...paymentForm, cardHolder: e.target.value })}
+                            placeholder="Name on card"
+                            className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-slate-700">Expiry Date (MM/YY) *</label>
+                          <input
+                            type="text"
+                            required
+                            value={paymentForm.cardExpiry}
+                            onChange={(e) => setPaymentForm({ ...paymentForm, cardExpiry: e.target.value })}
+                            placeholder="MM/YY"
+                            className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs font-mono focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">Card Type</label>
+                        <select
+                          value={paymentForm.cardType}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, cardType: e.target.value as any })}
+                          className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:outline-none"
+                        >
+                          <option value="visa">Visa</option>
+                          <option value="mastercard">MasterCard</option>
+                          <option value="rupay">RuPay</option>
+                          <option value="amex">American Express</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* UPI Details */}
+                  {paymentForm.type === 'upi' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">UPI ID *</label>
+                        <input
+                          type="text"
+                          required
+                          value={paymentForm.upiId}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, upiId: e.target.value })}
+                          placeholder="yourname@okhdfcbank"
+                          className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">UPI App</label>
+                        <div className="mt-2 flex gap-2">
+                          {['gpay', 'phonepe', 'paytm'].map((app) => (
+                            <label key={app} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                              <input
+                                type="radio"
+                                name="upiApp"
+                                checked={paymentForm.upiApp === app}
+                                onChange={() => setPaymentForm({ ...paymentForm, upiApp: app as any })}
+                              />
+                              <span className="capitalize">{app}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Net Banking Details */}
+                  {paymentForm.type === 'netbanking' && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">Select Bank *</label>
+                        <select
+                          value={paymentForm.bankName}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, bankName: e.target.value })}
+                          className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:outline-none"
+                        >
+                          <option value="sbi">State Bank of India</option>
+                          <option value="hdfc">HDFC Bank</option>
+                          <option value="icici">ICICI Bank</option>
+                          <option value="axis">Axis Bank</option>
+                          <option value="kotak">Kotak Mahindra Bank</option>
+                          <option value="pnb">Punjab National Bank</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700">Account Last 4 Digits *</label>
+                        <input
+                          type="text"
+                          required
+                          value={paymentForm.accountLast4}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, accountLast4: e.target.value })}
+                          placeholder="1234"
+                          maxLength={4}
+                          className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs font-mono focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={paymentForm.isDefault}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, isDefault: e.target.checked })}
+                      />
+                      <span>Set as default payment method</span>
+                    </label>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="submit"
+                      className="flex-1 rounded-lg bg-sky-500 py-2.5 text-xs font-bold text-white hover:bg-sky-600 shadow-xs"
+                    >
+                      {editingPaymentMethodId ? 'Update Payment Method' : 'Add Payment Method'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingPaymentMethod(false);
+                        setEditingPaymentMethodId(null);
+                      }}
+                      className="rounded-lg border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Payment Methods List */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {paymentMethods.map((method) => (
+                  <div
+                    key={method.id}
+                    className="relative flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between pb-2">
+                        <div className="flex items-center gap-2">
+                          {method.type === 'card' && <CreditCard className="h-4 w-4 text-slate-600" />}
+                          {method.type === 'upi' && <Smartphone className="h-4 w-4 text-slate-600" />}
+                          {method.type === 'netbanking' && <Building2 className="h-4 w-4 text-slate-600" />}
+                          <span className="font-bold text-sm text-slate-900 capitalize">
+                            {method.type === 'card' ? 'Credit/Debit Card' : method.type === 'upi' ? 'UPI' : 'Net Banking'}
+                          </span>
+                        </div>
+                        {method.isDefault && (
+                          <span className="rounded bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700 border border-sky-200">
+                            Default
+                          </span>
+                        )}
+                      </div>
+
+                      {method.type === 'card' && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-mono text-slate-900">•••• {method.cardNumber?.slice(-4)}</p>
+                          <p className="text-xs text-slate-600">{method.cardHolder}</p>
+                          <p className="text-xs text-slate-500">Expires: {method.cardExpiry}</p>
+                        </div>
+                      )}
+
+                      {method.type === 'upi' && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-mono text-slate-900">{method.upiId}</p>
+                          <p className="text-xs text-slate-500 capitalize">{method.upiApp}</p>
+                        </div>
+                      )}
+
+                      {method.type === 'netbanking' && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-slate-900 capitalize">{method.bankName}</p>
+                          <p className="text-xs text-slate-600">Account ending in •••• {method.accountLast4}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Edit, Set Default, and Delete buttons */}
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleStartEditPaymentMethod(method)}
+                          className="flex items-center gap-1 font-bold text-sky-600 hover:text-sky-700"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                          <span>Edit</span>
+                        </button>
+
+                        {!method.isDefault && (
+                          <button
+                            onClick={() => setDefaultPaymentMethod(method.id)}
+                            className="text-slate-600 hover:text-slate-900 underline"
+                          >
+                            Set as default
+                          </button>
+                        )}
+                      </div>
+
+                      {paymentMethods.length > 1 && (
+                        <button
+                          onClick={() => deletePaymentMethod(method.id)}
+                          className="flex items-center gap-1 text-rose-600 hover:text-rose-700"
+                          title="Delete payment method"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

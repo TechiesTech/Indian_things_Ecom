@@ -293,7 +293,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <div className="relative">
               <ShoppingCart className="h-7 w-7 text-white" />
-              <span className="absolute -top-1.5 left-3 flex min-w-[20px] items-center justify-center rounded-full bg-amber-500 px-1 text-xs font-black text-slate-950 shadow">
+              <span className="absolute -top-1.5 left-3 flex min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-xs font-black text-slate-950 shadow">
                 {totalItemsCount}
               </span>
             </div>

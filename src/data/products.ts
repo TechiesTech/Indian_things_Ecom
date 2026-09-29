@@ -663,3 +663,73 @@ export interface PlacedOrder {
     date: string;
   }[];
 }
+
+export interface PaymentMethod {
+  id: string;
+  type: 'card' | 'upi' | 'netbanking';
+  isDefault: boolean;
+  // Card details
+  cardNumber?: string;
+  cardHolder?: string;
+  cardExpiry?: string;
+  cardType?: 'visa' | 'mastercard' | 'rupay' | 'amex';
+  // UPI details
+  upiId?: string;
+  upiApp?: 'gpay' | 'phonepe' | 'paytm';
+  // Net banking details
+  bankName?: string;
+  accountLast4?: string;
+}
+
+export const INITIAL_PAYMENT_METHODS: PaymentMethod[] = [
+  {
+    id: 'pm-1',
+    type: 'card',
+    isDefault: true,
+    cardNumber: '4532 8901 2345 6789',
+    cardHolder: 'Rahul Sharma',
+    cardExpiry: '08/29',
+    cardType: 'visa',
+  },
+  {
+    id: 'pm-2',
+    type: 'upi',
+    isDefault: false,
+    upiId: 'rahul.sharma@okaxis',
+    upiApp: 'gpay',
+  },
+];
+
+export interface UserProfile {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  dateOfBirth?: string;
+  gender?: 'male' | 'female' | 'other';
+  preferences: {
+    emailNotifications: boolean;
+    smsNotifications: boolean;
+    promotionalOffers: boolean;
+    orderUpdates: boolean;
+  };
+  membershipLevel: 'standard' | 'prime' | 'premium';
+  memberSince: string;
+}
+
+export const INITIAL_USER_PROFILE: UserProfile = {
+  id: 'user-1',
+  fullName: 'Rahul Sharma',
+  email: 'rahul.sharma@example.com',
+  phone: '9876543210',
+  dateOfBirth: '15-08-1995',
+  gender: 'male',
+  preferences: {
+    emailNotifications: true,
+    smsNotifications: true,
+    promotionalOffers: true,
+    orderUpdates: true,
+  },
+  membershipLevel: 'prime',
+  memberSince: '2021',
+};
