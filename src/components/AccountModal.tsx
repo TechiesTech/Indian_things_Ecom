@@ -1,0 +1,818 @@
+import React, { useState } from 'react';
+import {
+  X,
+  User,
+  Package,
+  MapPin,
+  Headphones,
+  RotateCcw,
+  Plus,
+  Edit2,
+  Trash2,
+  CheckCircle2,
+  Truck,
+  ShieldCheck,
+  Calendar,
+  AlertCircle,
+  Clock,
+  PhoneCall,
+  MessageSquare,
+  HelpCircle,
+  ExternalLink,
+  ChevronRight,
+} from 'lucide-react';
+import { useCart } from '../context/CartContext';
+import { Address } from '../data/products';
+
+export const AccountModal: React.FC = () => {
+  const {
+    isAccountModalOpen,
+    setIsAccountModalOpen,
+    accountActiveTab,
+    setAccountActiveTab,
+    orders,
+    addresses,
+    addAddress,
+    updateAddress,
+    deleteAddress,
+    setDefaultAddress,
+    requestOrderReturn,
+  } = useCart();
+
+  // Address editing state
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [addrForm, setAddrForm] = useState<Omit<Address, 'id'>>({
+    fullName: '',
+    phone: '',
+    pincode: '500062',
+    houseFlat: '',
+    streetArea: '',
+    landmark: '',
+    city: 'Hyderabad',
+    state: 'Telangana',
+    type: 'Home',
+    isDefault: false,
+  });
+  const [addrError, setAddrError] = useState('');
+
+  // Support Ticket Form State
+  const [supportCategory, setSupportCategory] = useState('Order Tracking');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportSuccessMsg, setSupportSuccessMsg] = useState('');
+
+  // Return request modal state
+  const [returnOrderId, setReturnOrderId] = useState<string | null>(null);
+  const [returnReason, setReturnReason] = useState('Damaged during transit / Item mismatch');
+
+  if (!isAccountModalOpen) return null;
+
+  const handleStartEdit = (addr: Address) => {
+    setEditingAddressId(addr.id);
+    setIsAddingNew(false);
+    setAddrForm({
+      fullName: addr.fullName,
+      phone: addr.phone,
+      pincode: addr.pincode,
+      houseFlat: addr.houseFlat,
+      streetArea: addr.streetArea,
+      landmark: addr.landmark || '',
+      city: addr.city,
+      state: addr.state,
+      type: addr.type,
+      isDefault: addr.isDefault,
+    });
+    setAddrError('');
+  };
+
+  const handleStartAdd = () => {
+    setIsAddingNew(true);
+    setEditingAddressId(null);
+    setAddrForm({
+      fullName: '',
+      phone: '9876543210',
+      pincode: '500062',
+      houseFlat: '',
+      streetArea: '',
+      landmark: '',
+      city: 'Hyderabad',
+      state: 'Telangana',
+      type: 'Home',
+      isDefault: addresses.length === 0,
+    });
+    setAddrError('');
+  };
+
+  const handleSaveAddress = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addrForm.fullName.trim() || !addrForm.phone.trim() || !addrForm.houseFlat.trim() || !addrForm.streetArea.trim()) {
+      setAddrError('Please provide all required address details.');
+      return;
+    }
+    if (addrForm.phone.replace(/\D/g, '').length < 10) {
+      setAddrError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    if (editingAddressId) {
+      updateAddress(editingAddressId, addrForm);
+      setEditingAddressId(null);
+    } else if (isAddingNew) {
+      addAddress(addrForm);
+      setIsAddingNew(false);
+    }
+    setAddrError('');
+  };
+
+  const handleSubmitSupport = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supportMessage.trim()) return;
+    setSupportSuccessMsg(
+      `Support Ticket #IT-${Math.floor(100000 + Math.random() * 900000)} created. An Indian Things customer executive will call back on +91 9876543210 within 15 minutes.`
+    );
+    setSupportMessage('');
+    setTimeout(() => setSupportSuccessMsg(''), 7000);
+  };
+
+  const handleConfirmReturn = (orderId: string) => {
+    requestOrderReturn(orderId, returnReason);
+    setReturnOrderId(null);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-sm"
+      onClick={() => setIsAccountModalOpen(false)}
+    >
+      <div
+        className="relative flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Top Header & User Profile Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-800 bg-[#131921] px-5 py-4 text-white">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 font-bold text-slate-950 text-base shadow">
+              RS
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-white">Rahul Sharma</h3>
+                <span className="rounded bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-400/40">
+                  Prime Member
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                rahul.sharma@example.com · +91 98765 43210 · Member since 2021
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsAccountModalOpen(false)}
+            className="self-end sm:self-auto rounded-full p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+            aria-label="Close modal"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Tab Navigation Ribbon */}
+        <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-600 no-scrollbar">
+          <button
+            onClick={() => setAccountActiveTab('orders')}
+            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${
+              accountActiveTab === 'orders'
+                ? 'border-amber-500 text-amber-900 bg-white font-black'
+                : 'border-transparent hover:text-slate-900'
+            }`}
+          >
+            <Package className="h-4 w-4 text-amber-500" />
+            <span>Orders Placed So Far ({orders.length})</span>
+          </button>
+
+          <button
+            onClick={() => setAccountActiveTab('addresses')}
+            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${
+              accountActiveTab === 'addresses'
+                ? 'border-amber-500 text-amber-900 bg-white font-black'
+                : 'border-transparent hover:text-slate-900'
+            }`}
+          >
+            <MapPin className="h-4 w-4 text-emerald-600" />
+            <span>Delivery Addresses ({addresses.length})</span>
+          </button>
+
+          <button
+            onClick={() => setAccountActiveTab('support')}
+            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${
+              accountActiveTab === 'support'
+                ? 'border-amber-500 text-amber-900 bg-white font-black'
+                : 'border-transparent hover:text-slate-900'
+            }`}
+          >
+            <Headphones className="h-4 w-4 text-sky-600" />
+            <span>24/7 Customer Support</span>
+          </button>
+
+          <button
+            onClick={() => setAccountActiveTab('returns')}
+            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${
+              accountActiveTab === 'returns'
+                ? 'border-amber-500 text-amber-900 bg-white font-black'
+                : 'border-transparent hover:text-slate-900'
+            }`}
+          >
+            <RotateCcw className="h-4 w-4 text-rose-600" />
+            <span>Return Policy &amp; Replacement</span>
+          </button>
+        </div>
+
+        {/* Tab Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
+          {/* ================= TAB 1: ORDERS PLACED SO FAR & TRACKING ================= */}
+          {accountActiveTab === 'orders' && (
+            <div className="space-y-4 max-w-3xl mx-auto">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <h4 className="text-sm font-bold text-slate-900">
+                  Your Orders History ({orders.length})
+                </h4>
+                <span className="text-xs text-slate-500">Live Real-Time Tracking Enabled</span>
+              </div>
+
+              {orders.length === 0 ? (
+                <div className="py-12 text-center bg-white rounded-xl border border-slate-200 p-8">
+                  <Package className="mx-auto h-12 w-12 text-slate-300" />
+                  <p className="mt-3 text-sm font-bold text-slate-800">No orders placed yet</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Explore GI tagged handicrafts and state treasures on Indian Things!
+                  </p>
+                </div>
+              ) : (
+                orders.map((ord) => (
+                  <div
+                    key={ord.id}
+                    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs"
+                  >
+                    {/* Order header strip */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-3 text-xs">
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Order Placed</span>
+                          <span className="font-semibold text-slate-900">{ord.date}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Total</span>
+                          <span className="font-bold text-slate-900">₹{ord.total.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Ship To</span>
+                          <span className="font-semibold text-slate-900">{ord.deliveryAddress.fullName}</span>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="block text-[10px] uppercase font-bold text-slate-400">Order ID</span>
+                        <span className="font-mono font-bold text-slate-900">{ord.orderNumber}</span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2.5 w-2.5 rounded-full ${ord.status === 'Delivered' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`} />
+                          <span className="text-xs font-extrabold text-slate-900">Status: {ord.status}</span>
+                          <span className="text-xs text-slate-500">· {ord.deliveryDate}</span>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setReturnOrderId(ord.id);
+                              setAccountActiveTab('returns');
+                            }}
+                            className="rounded border border-slate-300 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100"
+                          >
+                            Return / Replace
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Items */}
+                      <div className="divide-y divide-slate-100">
+                        {ord.items.map((it, idx) => (
+                          <div key={idx} className="flex items-center justify-between py-2 text-xs">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={it.image}
+                                alt={it.name}
+                                className="h-12 w-12 rounded-lg border object-cover"
+                              />
+                              <div>
+                                <p className="font-bold text-slate-900 line-clamp-1 max-w-sm">{it.name}</p>
+                                <p className="text-[11px] text-slate-500">
+                                  Qty: {it.quantity} {it.variant ? `(${it.variant})` : ''} · ₹{it.price.toLocaleString('en-IN')}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="font-bold text-slate-900">
+                              ₹{(it.price * it.quantity).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Live Tracking Timeline */}
+                      <div className="rounded-lg bg-slate-50 p-3 text-xs border border-slate-100">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-800 mb-2">
+                          <Truck className="h-4 w-4 text-amber-500" />
+                          <span>Delivery Progress Stepper</span>
+                        </div>
+                        <div className="space-y-2">
+                          {ord.trackingSteps.map((step, sIdx) => (
+                            <div key={sIdx} className="flex items-start gap-2.5">
+                              <div className={`mt-0.5 h-3.5 w-3.5 rounded-full flex items-center justify-center shrink-0 ${
+                                step.completed ? 'bg-emerald-500 text-white' : 'bg-slate-300 text-slate-600'
+                              }`}>
+                                {step.completed && <CheckCircle2 className="h-3 w-3" />}
+                              </div>
+                              <div className="text-[11px]">
+                                <span className={`font-bold ${step.completed ? 'text-slate-900' : 'text-slate-400'}`}>
+                                  {step.title}
+                                </span>
+                                <span className="text-slate-400 ml-1">({step.date})</span>
+                                <p className="text-slate-500">{step.description}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* ================= TAB 2: ADDRESSES (ADD & EDIT OPTIONS) ================= */}
+          {accountActiveTab === 'addresses' && (
+            <div className="space-y-5 max-w-3xl mx-auto">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">
+                    Your Saved Delivery Addresses ({addresses.length})
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Add new addresses or edit existing ones for speedy checkout.
+                  </p>
+                </div>
+                {!isAddingNew && !editingAddressId && (
+                  <button
+                    onClick={handleStartAdd}
+                    className="flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-xs"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Add New Address</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Add / Edit Form Modal Box */}
+              {(isAddingNew || editingAddressId) && (
+                <form
+                  onSubmit={handleSaveAddress}
+                  className="rounded-xl border-2 border-amber-400 bg-white p-5 shadow-md space-y-4"
+                >
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                      {editingAddressId ? 'Edit Delivery Address' : 'Add New Delivery Address'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingNew(false);
+                        setEditingAddressId(null);
+                      }}
+                      className="text-xs text-slate-500 hover:text-slate-800 underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  {addrError && (
+                    <div className="rounded bg-rose-100 p-2 text-xs text-rose-800 flex items-center gap-1.5">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>{addrError}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">Full Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addrForm.fullName}
+                        onChange={(e) => setAddrForm({ ...addrForm, fullName: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">Phone Number (10 digits) *</label>
+                      <input
+                        type="tel"
+                        required
+                        value={addrForm.phone}
+                        onChange={(e) => setAddrForm({ ...addrForm, phone: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">PIN Code *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addrForm.pincode}
+                        onChange={(e) => setAddrForm({ ...addrForm, pincode: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">City *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addrForm.city}
+                        onChange={(e) => setAddrForm({ ...addrForm, city: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700">State *</label>
+                      <input
+                        type="text"
+                        required
+                        value={addrForm.state}
+                        onChange={(e) => setAddrForm({ ...addrForm, state: e.target.value })}
+                        className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700">Flat, House no., Building *</label>
+                    <input
+                      type="text"
+                      required
+                      value={addrForm.houseFlat}
+                      onChange={(e) => setAddrForm({ ...addrForm, houseFlat: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700">Area, Colony, Street, Sector *</label>
+                    <input
+                      type="text"
+                      required
+                      value={addrForm.streetArea}
+                      onChange={(e) => setAddrForm({ ...addrForm, streetArea: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700">Landmark (Optional)</label>
+                    <input
+                      type="text"
+                      value={addrForm.landmark || ''}
+                      onChange={(e) => setAddrForm({ ...addrForm, landmark: e.target.value })}
+                      placeholder="e.g. Near Metro Station / Opposite Bank"
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:border-amber-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold text-slate-700">Type:</span>
+                      <label className="flex items-center gap-1 text-xs cursor-pointer">
+                        <input
+                          type="radio"
+                          name="accAddrType"
+                          checked={addrForm.type === 'Home'}
+                          onChange={() => setAddrForm({ ...addrForm, type: 'Home' })}
+                        />
+                        <span>Home</span>
+                      </label>
+                      <label className="flex items-center gap-1 text-xs cursor-pointer">
+                        <input
+                          type="radio"
+                          name="accAddrType"
+                          checked={addrForm.type === 'Work'}
+                          onChange={() => setAddrForm({ ...addrForm, type: 'Work' })}
+                        />
+                        <span>Work / Office</span>
+                      </label>
+                    </div>
+
+                    <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={addrForm.isDefault}
+                        onChange={(e) => setAddrForm({ ...addrForm, isDefault: e.target.checked })}
+                      />
+                      <span>Make this my default address</span>
+                    </label>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="submit"
+                      className="flex-1 rounded-lg bg-amber-400 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-xs"
+                    >
+                      {editingAddressId ? 'Save Changes' : 'Add Address'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingNew(false);
+                        setEditingAddressId(null);
+                      }}
+                      className="rounded-lg border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Addresses List with Edit & Delete Options */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {addresses.map((addr) => (
+                  <div
+                    key={addr.id}
+                    className="relative flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between pb-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-sm text-slate-900">{addr.fullName}</span>
+                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-600">
+                            {addr.type}
+                          </span>
+                        </div>
+                        {addr.isDefault && (
+                          <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                            Default Address
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-slate-600 mt-1">{addr.houseFlat}, {addr.streetArea}</p>
+                      {addr.landmark && (
+                        <p className="text-xs text-slate-500">Landmark: {addr.landmark}</p>
+                      )}
+                      <p className="text-xs font-semibold text-slate-800 mt-0.5">
+                        {addr.city}, {addr.state} - {addr.pincode}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">Phone: {addr.phone}</p>
+                    </div>
+
+                    {/* Edit, Set Default, and Delete buttons */}
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleStartEdit(addr)}
+                          className="flex items-center gap-1 font-bold text-amber-600 hover:text-amber-700"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                          <span>Edit</span>
+                        </button>
+
+                        {!addr.isDefault && (
+                          <button
+                            onClick={() => setDefaultAddress(addr.id)}
+                            className="text-slate-600 hover:text-slate-900 underline"
+                          >
+                            Set as default
+                          </button>
+                        )}
+                      </div>
+
+                      {addresses.length > 1 && (
+                        <button
+                          onClick={() => deleteAddress(addr.id)}
+                          className="flex items-center gap-1 text-rose-600 hover:text-rose-700"
+                          title="Delete address"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 3: CUSTOMER SUPPORT ================= */}
+          {accountActiveTab === 'support' && (
+            <div className="space-y-6 max-w-3xl mx-auto">
+              <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4">
+                <div className="flex items-center gap-2 text-sky-900 font-bold text-sm">
+                  <Headphones className="h-5 w-5 text-sky-700" />
+                  <span>Indian Things Customer Assistance Hub</span>
+                </div>
+                <p className="text-xs text-sky-800 mt-1">
+                  We are here 24/7 during the Great Indian Festival to assist with your orders, artisanal craft verification, and payments.
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-4 text-xs font-semibold text-sky-950">
+                  <div className="flex items-center gap-1.5">
+                    <PhoneCall className="h-3.5 w-3.5 text-sky-600" />
+                    <span>Toll Free: 1800-209-INDIAN (4634)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-sky-600" />
+                    <span>Response Time: &lt; 5 minutes</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit a Support Request */}
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
+                <h4 className="text-sm font-bold text-slate-900 mb-2">Raise a Quick Support Query</h4>
+
+                {supportSuccessMsg && (
+                  <div className="mb-3 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>{supportSuccessMsg}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmitSupport} className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700">Query Category</label>
+                    <select
+                      value={supportCategory}
+                      onChange={(e) => setSupportCategory(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs font-semibold text-slate-800"
+                    >
+                      <option value="Order Tracking">Where is my order? (Tracking &amp; ETA)</option>
+                      <option value="Bank Discount">SBI Card 10% Instant Discount inquiry</option>
+                      <option value="Address Change">Change Delivery Address for open order</option>
+                      <option value="GI Certification">Artisan GI Tag verification inquiry</option>
+                      <option value="Damaged Item">Damaged item / Return request</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700">Describe your issue / question</label>
+                    <textarea
+                      rows={3}
+                      required
+                      value={supportMessage}
+                      onChange={(e) => setSupportMessage(e.target.value)}
+                      placeholder="e.g. Please help me check expedited delivery status for my order..."
+                      className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-xs text-slate-900 focus:border-amber-400 focus:outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-xs"
+                  >
+                    Request Instant Agent Callback
+                  </button>
+                </form>
+              </div>
+
+              {/* FAQs */}
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
+                <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
+                  <HelpCircle className="h-4 w-4 text-amber-500" />
+                  <span>Frequently Asked Questions</span>
+                </h4>
+                <div className="space-y-3 text-xs text-slate-600 divide-y divide-slate-100">
+                  <div className="pt-2">
+                    <p className="font-bold text-slate-900">How do I track my order in real-time?</p>
+                    <p className="mt-0.5 text-slate-500">
+                      Click the &ldquo;Orders Placed So Far&rdquo; tab or the top bar &ldquo;Returns &amp; Orders&rdquo; button to view the step-by-step dispatch status.
+                    </p>
+                  </div>
+                  <div className="pt-2">
+                    <p className="font-bold text-slate-900">How is the SBI Card 10% instant discount applied?</p>
+                    <p className="mt-0.5 text-slate-500">
+                      Simply select the SBI Credit/Debit Card option at checkout. The 10% discount (up to ₹500) will be deducted automatically from your bill before payment.
+                    </p>
+                  </div>
+                  <div className="pt-2">
+                    <p className="font-bold text-slate-900">Are the state-wise craft items genuine and authentic?</p>
+                    <p className="mt-0.5 text-slate-500">
+                      Yes! All state specialty treasures (Kashmiri Pashmina, Jaipur Blue Pottery, Kolhapuri Leather, Assam Tea) are sourced directly from certified artisan guilds holding official GI tags.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 4: RETURN POLICY & REPLACEMENT ================= */}
+          {accountActiveTab === 'returns' && (
+            <div className="space-y-6 max-w-3xl mx-auto">
+              <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-4">
+                <div className="flex items-center gap-2 text-rose-900 font-bold text-sm">
+                  <RotateCcw className="h-5 w-5 text-rose-600" />
+                  <span>Indian Things 7-Day Hassle-Free Return &amp; Replacement Policy</span>
+                </div>
+                <p className="text-xs text-rose-800 mt-1">
+                  Enjoy complete peace of mind with 100% money-back guarantee or free replacement on any authentic state craft or festival purchase within 7 days of delivery.
+                </p>
+              </div>
+
+              {/* 3 Steps of Return */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-900 font-bold mb-2">
+                    1
+                  </div>
+                  <h5 className="font-bold text-slate-900">1-Click Request</h5>
+                  <p className="text-slate-500 mt-1">
+                    Select your order below and choose return or replacement reason.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-900 font-bold mb-2">
+                    2
+                  </div>
+                  <h5 className="font-bold text-slate-900">Free Doorstep Pickup</h5>
+                  <p className="text-slate-500 mt-1">
+                    Our logistics partner picks up the package right from your doorstep at zero cost.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-900 font-bold mb-2">
+                    3
+                  </div>
+                  <h5 className="font-bold text-slate-900">Instant Refund</h5>
+                  <p className="text-slate-500 mt-1">
+                    Refund is credited directly back to your original payment card or UPI immediately upon pickup.
+                  </p>
+                </div>
+              </div>
+
+              {/* Return Eligible Orders */}
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
+                <h4 className="text-sm font-bold text-slate-900 mb-3">
+                  Initiate Return for Eligible Delivered Orders
+                </h4>
+
+                <div className="space-y-3">
+                  {orders.map((ord) => {
+                    const isReturnRequested = ord.status === 'Return Requested';
+                    return (
+                      <div
+                        key={ord.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 text-xs"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-slate-900">{ord.orderNumber}</span>
+                            <span className="text-slate-400">· Delivered {ord.deliveryDate}</span>
+                          </div>
+                          <p className="text-slate-600 mt-0.5">
+                            {ord.items.map((i) => i.name).join(', ')}
+                          </p>
+                        </div>
+
+                        {isReturnRequested ? (
+                          <div className="flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span>Pickup Scheduled (Refund in progress)</span>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleConfirmReturn(ord.id)}
+                            className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 shadow-xs"
+                          >
+                            Initiate Return / Refund &gt;
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

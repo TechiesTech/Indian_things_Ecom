@@ -1,0 +1,6 @@
+{
+  "name": "Festive Bazaar - Deals & Easy Checkout",
+  "description": "Festival shopping dashboard featuring curated discount tiles, one-click cart ordering, and seamless address & payment gateways.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
