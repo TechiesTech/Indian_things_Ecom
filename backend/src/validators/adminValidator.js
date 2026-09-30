@@ -55,11 +55,27 @@ const loginSchema = Joi.object({
   password: Joi.string().required(),
 });
 
+const userLoginSchema = Joi.object({
+  name: Joi.string().trim().required().messages({
+    'string.empty': 'Name is required.',
+  }),
+  email: Joi.string().email().required().messages({
+    'string.email': 'Invalid email format.',
+    'string.empty': 'Email is required.',
+  }),
+  mobile: Joi.string().length(10).pattern(/^\d+$/).required().messages({
+    'string.length': 'Mobile number must be exactly 10 digits.',
+    'string.pattern.base': 'Mobile number must contain only digits.',
+    'string.empty': 'Mobile number is required.',
+  }),
+});
+
 module.exports = {
   registerSchema,
   verifyOtpSchema,
   setPasswordSchema,
   loginSchema,
+  userLoginSchema,
   checkRegistrationSchema,
   forgotPasswordSchema,
 };

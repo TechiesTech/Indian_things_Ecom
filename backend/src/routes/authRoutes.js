@@ -6,7 +6,9 @@ const {
   verifyOtp,
   setPassword,
   login,
-  forgotPassword
+  forgotPassword,
+  userSendOtp,
+  userVerifyOtp
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -222,5 +224,64 @@ router.get('/profile', protect, (req, res) => {
     admin: req.admin
   });
 });
+
+/**
+ * @swagger
+ * /api/auth/user-login:
+ *   post:
+ *     summary: User Login Step 1 - Send OTP (Sign up / Login without password)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - mobile
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               mobile:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP sent to the email
+ *       400:
+ *         description: Validation error
+ */
+router.post('/userLoginOtp', userSendOtp);
+
+/**
+ * @swagger
+ * /api/auth/user-verify-otp:
+ *   post:
+ *     summary: User Login Step 2 - Verify OTP and Login
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *             properties:
+ *               email:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful, returns JWT and user info
+ *       400:
+ *         description: Invalid or expired OTP
+ */
+router.post('/userVerifyOtp', userVerifyOtp);
 
 module.exports = router;

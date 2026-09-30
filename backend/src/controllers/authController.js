@@ -1,5 +1,5 @@
-const { checkAdminRegistrationService, AdminRegisterService, verifyOtpService, setPasswordService, loginUser, forgotPasswordService } = require('../services/authService');
-const { checkRegistrationSchema, registerSchema, verifyOtpSchema, setPasswordSchema, loginSchema, forgotPasswordSchema } = require('../validators/adminValidator');
+const { checkAdminRegistrationService, AdminRegisterService, verifyOtpService, setPasswordService, loginUser, forgotPasswordService, userSendOtpService, userVerifyOtpService } = require('../services/authService');
+const { checkRegistrationSchema, registerSchema, verifyOtpSchema, setPasswordSchema, loginSchema, forgotPasswordSchema, userLoginSchema } = require('../validators/adminValidator');
 
 /**
  * Controller to check if a user is already registered
@@ -93,6 +93,36 @@ const forgotPassword = async (req, res, next) => {
 
 
 
+/**
+ * Controller for User Send OTP (Sign Up / Login init)
+ */
+const userSendOtp = async (req, res, next) => {
+  const { error, value } = userLoginSchema.validate(req.body);
+  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+
+  try {
+    const result = await userSendOtpService(value);
+    res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Controller for User Verify OTP (Complete Login)
+ */
+const userVerifyOtp = async (req, res, next) => {
+  const { error, value } = verifyOtpSchema.validate(req.body);
+  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+
+  try {
+    const result = await userVerifyOtpService(value.email, value.otp);
+    res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   checkUser,
   adminRegister,
@@ -100,4 +130,6 @@ module.exports = {
   setPassword,
   login,
   forgotPassword,
+  userSendOtp,
+  userVerifyOtp,
 };

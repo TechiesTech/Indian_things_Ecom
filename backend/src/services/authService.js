@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const Admin = require('../models/Admin');
+const User = require('../models/User');
 const adminRepository = require('../repositories/adminRepository');
 const { sendOtpEmail } = require('../config/NodeMailer');
 const {
@@ -117,6 +118,54 @@ const loginUser = async (email, password) => {
   };
 };
 
+const userSendOtpService = async ({ name, email, mobile }) => {
+  let user = await User.findOne({ $or: [{ email }, { mobile }] });
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+
+  if (!user) {
+    user = new User({ name, email, mobile, otp, otpExpires, isVerified: false });
+  } else {
+    user.otp = otp;
+    user.otpExpires = otpExpires;
+  }
+  await user.save();
+
+  await sendOtpEmail(email, otp);
+  return { message: 'OTP sent to your email. Valid for 5 minutes.' };
+};
+
+const userVerifyOtpService = async (email, otp) => {
+  const user = await User.findOne({ email });
+  if (!user) throw { status: 404, message: 'User not found.' };
+
+  await commonVerifyOtpService(User, email, otp);
+
+  user.isVerified = true;
+  user.otp = undefined;
+  user.otpExpires = undefined;
+  await user.save();
+
+  const token = jwt.sign(
+    { id: user._id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  return {
+    success: true,
+    token: `Bearer ${token}`,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      mobile: user.mobile,
+      role: user.role,
+    },
+  };
+};
+
 module.exports = {
   checkAdminRegistrationService,
   AdminRegisterService,
@@ -124,4 +173,6 @@ module.exports = {
   setPasswordService,
   loginUser,
   forgotPasswordService,
+  userSendOtpService,
+  userVerifyOtpService,
 };
