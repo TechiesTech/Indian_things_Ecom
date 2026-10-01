@@ -10,6 +10,7 @@ import { ProductDetailModal } from './components/ProductDetailModal';
 import { OrdersHistoryModal } from './components/OrdersHistoryModal';
 import { LocationModal } from './components/LocationModal';
 import { AccountModal } from './components/AccountModal';
+import { LoginForm } from './components/LoginForm';
 import { Toast } from './components/Toast';
 import { Footer } from './components/Footer';
 
@@ -60,10 +61,22 @@ export function DashboardContent() {
   );
 }
 
+function AuthenticatedApp() {
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => Boolean(sessionStorage.getItem('it_user_token'))
+  );
+
+  return isAuthenticated
+    ? <DashboardContent />
+    : <LoginForm onLoginSuccess={() => setIsAuthenticated(true)} />;
+}
+
 export default function App() {
   return (
     <CartProvider>
-      <DashboardContent />
+
+
+      <AuthenticatedApp />
     </CartProvider>
   );
 }
