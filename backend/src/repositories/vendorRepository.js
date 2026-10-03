@@ -1,4 +1,4 @@
-const Vendor = require('../models/Vendor');
+const Vendor = require('../models/schemas/vendorSchema');
 const bcrypt = require('bcryptjs');
 
 /**

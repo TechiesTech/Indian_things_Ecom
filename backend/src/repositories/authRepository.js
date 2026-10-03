@@ -1,5 +1,5 @@
-const User = require('../models/User');
-const Otp = require('../models/Otp');
+const User = require('../models/schemas/userSchema');
+const Otp = require('../models/schemas/otpSchema');
 
 const user = {
   findByEmail: (email) => User.findOne({ email }).lean(),

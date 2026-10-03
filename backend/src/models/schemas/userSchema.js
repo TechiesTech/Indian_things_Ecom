@@ -72,4 +72,6 @@ userSchema.index({ role: 1, isActive: 1, createdAt: -1 });
 // Admin search by name
 userSchema.index({ name: 'text' });
 
-module.exports = userSchema;
+const User = mongoose.model('User', userSchema, 'users');
+
+module.exports = User;

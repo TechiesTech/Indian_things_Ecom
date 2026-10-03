@@ -30,4 +30,6 @@ otpSchema.index({ email: 1 }, { unique: true });
 // MongoDB TTL index — auto-deletes expired documents
 otpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = otpSchema;
+const Otp = mongoose.model('Otp', otpSchema, 'otps');
+
+module.exports = Otp;
