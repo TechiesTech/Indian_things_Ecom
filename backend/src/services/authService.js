@@ -1,178 +1,183 @@
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
-
-const Admin = require('../models/Admin');
-const User = require('../models/User');
-const adminRepository = require('../repositories/adminRepository');
+const { user: userRepository, otp: otpRepository } = require('../repositories/authRepository');
 const { sendOtpEmail } = require('../config/NodeMailer');
 const {
-  commonForgotPasswordService,
-  commonVerifyOtpService,
-  commonResetPasswordService,
-} = require('./commonAuthService');
+  ROLES,
+  AUTH_PROVIDER,
+  VENDOR_STATUS,
+  OTP_PURPOSE,
+  OTP_TTL_MS,
+  VERIFIED_TTL_MS,
+  OTP_MAX_ATTEMPTS,
+} = require('../utils/constants');
 
-/**
- * Service to check if user connects before registration
- */
+const PASSWORD_ROUNDS = 12;
+
+const fail = (status, message) => Object.assign(new Error(message), { status });
+
+const hashOtp = (otp) =>
+  crypto.createHmac('sha256', process.env.JWT_SECRET).update(otp).digest('hex');
+
+const isSameHash = (a, b) =>
+  a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+
+const signToken = (user) =>
+  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  });
+
+const withoutPassword = ({ passwordHash, ...user }) => user;
+
+const sendOtp = async (email, purpose, payload) => {
+  const otp = String(crypto.randomInt(100000, 1000000));
+  const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+  await otpRepository.upsert(email, purpose, hashOtp(otp), payload, expiresAt);
+
+  const sent = await sendOtpEmail(email, otp);
+  if (sent?.success === false) throw fail(502, 'Failed to send OTP email. Please try again.');
+};
+
+const assertNotRegistered = async (email, phone) => {
+  const existing = await userRepository.findByEmailOrPhone(email, phone);
+  if (existing) throw fail(409, 'Email or mobile is already registered.');
+};
+
 const checkAdminRegistrationService = async ({ email, mobile }) => {
-  const existingAdmin = await adminRepository.findByEmailOrMobile({ email, mobile });
-
-  if (existingAdmin && existingAdmin.isVerified) {
-    if (existingAdmin.mobile === mobile) throw { status: 409, message: 'Mobile number already in use' };
-    if (existingAdmin.email === email) throw { status: 409, message: 'Email already in use' };
-  }
+  await assertNotRegistered(email, mobile);
 };
 
-/**
- * Service for Step 1: Handle registration core logic
- */
-const AdminRegisterService = async (userData) => {
-  const { name, mobile, email } = userData;
-
-  // 1. Reject if a verified admin already owns this email/mobile
-  await checkAdminRegistrationService({ email, mobile });
-
-  // 2. Atomically create-or-update the pending record in one query
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
-
-  await adminRepository.upsertByEmailOrMobile(
-    { email, mobile },
-    { name, mobile, email, otp, otpExpires, isVerified: false }
-  );
-
-  await sendOtpEmail(email, otp);
-  return { message: 'OTP sent to your email. Valid for 5 minutes.' };
+const AdminRegisterService = async ({ name, email, mobile }) => {
+  await assertNotRegistered(email, mobile);
+  await sendOtp(email, OTP_PURPOSE.ADMIN_REGISTER, { name, phone: mobile });
+  return { message: 'OTP sent to your email.' };
 };
 
-/**
- * Service for OTP verification (Registration and Forgot Password)
- */
-const verifyOtpService = async (email, otp) => {
-  const admin = await adminRepository.findByEmail(email);
-  if (!admin) throw { status: 404, message: 'User not found.' };
-
-  // Track whether this was a brand new registration BEFORE verification
-  const isNewRegistration = !admin.isVerified;
-
-  await commonVerifyOtpService(Admin, email, otp);
-
-  if (isNewRegistration) {
-    await adminRepository.updateByEmail(email, { isVerified: true });
-  }
-
-  const message = isNewRegistration
-    ? 'OTP verified. Please proceed to set your password.'
-    : 'OTP verified. Please proceed to reset your password.';
-
-  return { message, isNewRegistration };
-};
-
-/**
- * Service for password setting/reset
- */
-const setPasswordService = async (email, password) => {
-  const admin = await adminRepository.findByEmail(email);
-  if (!admin || !admin.isVerified) throw { status: 403, message: 'Email verification required.' };
-
-  return await commonResetPasswordService(Admin, email, password);
-};
-
-/**
- * Service for Forgot Password: Send OTP to existing verified user
- */
-const forgotPasswordService = async (email) => {
-  // Only verified admins can reset password
-  const canResetCheck = (admin) => admin.isVerified;
-  return await commonForgotPasswordService(Admin, email, canResetCheck);
-};
-
-/**
- * Service for Login: Authenticate and return JWT token
- */
-const loginUser = async (email, password) => {
-  const admin = await adminRepository.findByEmailWithPassword(email);
-
-  if (!admin || !admin.isVerified) {
-    throw { status: 401, message: 'Invalid credentials or unverified account.' };
-  }
-
-  const isMatch = await admin.comparePassword(password);
-  if (!isMatch) throw { status: 401, message: 'Invalid credentials.' };
-
-  const token = jwt.sign(
-    { id: admin._id, role: admin.role },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
-  );
+const registerVendorService = async ({
+  personName, phoneNumber, email, password,
+  companyName, companyAddress, servicesProvided, serviceImages, socialLinks,
+}) => {
+  const passwordHash = await bcrypt.hash(password, PASSWORD_ROUNDS);
+  const user = await userRepository.create({
+    name: personName,
+    email,
+    phone: phoneNumber,
+    passwordHash,
+    role: ROLES.VENDOR,
+    authProvider: AUTH_PROVIDER.LOCAL,
+    vendor: {
+      companyName,
+      companyAddress,
+      servicesProvided,
+      serviceImages,
+      socialLinks,
+      status: VENDOR_STATUS.PENDING,
+    },
+  });
 
   return {
-    success: true,
-    token: `Bearer ${token}`,
-    admin: {
-      id: admin._id,
-      name: admin.name,
-      email: admin.email,
-      role: admin.role,
-    },
+    message: 'Registration submitted. You can log in once an admin approves your account.',
+    user: withoutPassword(user),
   };
+};
+
+const loginUser = async (email, password) => {
+  const user = await userRepository.findByEmailWithPassword(email);
+  const isValid = user?.passwordHash && (await bcrypt.compare(password, user.passwordHash));
+  if (!isValid) throw fail(401, 'Invalid email or password.');
+
+  if (!user.isActive) throw fail(403, 'Your account has been deactivated.');
+
+  if (user.role === ROLES.VENDOR && user.vendor.status !== VENDOR_STATUS.APPROVED) {
+    throw fail(403, `Your vendor account is ${user.vendor.status.toLowerCase()}.`);
+  }
+
+  await userRepository.updateLastLogin(user._id);
+  return { token: signToken(user), user: withoutPassword(user) };
+};
+
+const forgotPasswordService = async (email) => {
+  const user = await userRepository.findByEmail(email);
+  if (user?.isActive && user.authProvider === AUTH_PROVIDER.LOCAL) {
+    await sendOtp(email, OTP_PURPOSE.RESET_PASSWORD);
+  }
+  return { message: 'If this email is registered, an OTP has been sent.' };
 };
 
 const userSendOtpService = async ({ name, email, mobile }) => {
-  let user = await User.findOne({ $or: [{ email }, { mobile }] });
-
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
-
-  if (!user) {
-    user = new User({ name, email, mobile, otp, otpExpires, isVerified: false });
-  } else {
-    user.otp = otp;
-    user.otpExpires = otpExpires;
+  const existing = await userRepository.findByEmailOrPhone(email, mobile);
+  if (existing && existing.email !== email) {
+    throw fail(409, 'Mobile is already registered with another account.');
   }
-  await user.save();
+  if (existing && existing.role !== ROLES.CUSTOMER) {
+    throw fail(403, 'This email belongs to a non-customer account.');
+  }
+  if (existing && !existing.isActive) throw fail(403, 'Your account has been deactivated.');
 
-  await sendOtpEmail(email, otp);
-  return { message: 'OTP sent to your email. Valid for 5 minutes.' };
+  await sendOtp(email, OTP_PURPOSE.CUSTOMER_LOGIN, { name, phone: mobile });
+  return { message: 'OTP sent to your email.' };
 };
 
-const userVerifyOtpService = async (email, otp) => {
-  const user = await User.findOne({ email });
-  if (!user) throw { status: 404, message: 'User not found.' };
+const completeCustomerLogin = async ({ _id, email, payload }) => {
+  await otpRepository.remove(_id);
 
-  await commonVerifyOtpService(User, email, otp);
+  const user = await userRepository.findOrCreateAndMarkLogin(email, {
+    name: payload.name,
+    phone: payload.phone,
+    role: ROLES.CUSTOMER,
+    authProvider: AUTH_PROVIDER.OTP,
+    isVerified: true,
+  });
+  if (!user.isActive) throw fail(403, 'Your account has been deactivated.');
 
-  user.isVerified = true;
-  user.otp = undefined;
-  user.otpExpires = undefined;
-  await user.save();
+  return { token: signToken(user), user };
+};
 
-  const token = jwt.sign(
-    { id: user._id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
-  );
+const verifyOtpService = async (email, otp) => {
+  const record = await otpRepository.consumeAttempt(email, OTP_MAX_ATTEMPTS);
+  if (!record || !record.otpHash) throw fail(400, 'OTP is invalid, expired or too many attempts. Request a new one.');
 
-  return {
-    success: true,
-    token: `Bearer ${token}`,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      mobile: user.mobile,
-      role: user.role,
-    },
-  };
+  if (!isSameHash(record.otpHash, hashOtp(otp))) {
+    throw fail(400, `Invalid OTP. ${OTP_MAX_ATTEMPTS - record.attempts} attempt(s) left.`);
+  }
+
+  if (record.purpose === OTP_PURPOSE.CUSTOMER_LOGIN) return completeCustomerLogin(record);
+
+  await otpRepository.markVerified(record._id, new Date(Date.now() + VERIFIED_TTL_MS));
+  return { message: 'OTP verified successfully.' };
+};
+
+const setPasswordService = async (email, password) => {
+  const record = await otpRepository.consumeVerified(email);
+  if (!record) throw fail(403, 'OTP verification required first.');
+
+  const passwordHash = await bcrypt.hash(password, PASSWORD_ROUNDS);
+
+  if (record.purpose === OTP_PURPOSE.ADMIN_REGISTER) {
+    await userRepository.create({
+      name: record.payload.name,
+      email,
+      phone: record.payload.phone,
+      passwordHash,
+      role: ROLES.ADMIN,
+      authProvider: AUTH_PROVIDER.LOCAL,
+      isVerified: true,
+    });
+    return { message: 'Admin account created successfully.' };
+  }
+
+  await userRepository.updatePassword(email, passwordHash);
+  return { message: 'Password reset successfully.' };
 };
 
 module.exports = {
-  checkAdminRegistrationService,
-  AdminRegisterService,
-  verifyOtpService,
-  setPasswordService,
-  loginUser,
-  forgotPasswordService,
-  userSendOtpService,
-  userVerifyOtpService,
+  checkAdminRegistration: checkAdminRegistrationService,
+  adminRegister: AdminRegisterService,
+  registerVendor: registerVendorService,
+  login: loginUser,
+  forgotPassword: forgotPasswordService,
+  userSendOtp: userSendOtpService,
+  verifyOtp: verifyOtpService,
+  setPassword: setPasswordService,
 };

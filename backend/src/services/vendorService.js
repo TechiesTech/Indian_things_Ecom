@@ -1,13 +1,7 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-const Vendor = require('../models/Vendor');
 const vendorRepository = require('../repositories/vendorRepository');
-const {
-  commonForgotPasswordService,
-  commonVerifyOtpService,
-  commonResetPasswordService,
-} = require('./commonAuthService');
 
 /**
  * Service to register a new vendor
@@ -114,36 +108,10 @@ const loginVendorService = async (email, password) => {
   };
 };
 
-/**
- * Service for vendor forgot password
- */
-const forgotPasswordVendorService = async (email) => {
-  // Only approved vendors can reset their password
-  const canResetCheck = (vendor) => vendor.status === 'approved';
-  return await commonForgotPasswordService(Vendor, email, canResetCheck);
-};
-
-/**
- * Service for vendor OTP verification
- */
-const verifyOtpVendorService = async (email, otp) => {
-  return await commonVerifyOtpService(Vendor, email, otp);
-};
-
-/**
- * Service for vendor password reset
- */
-const resetPasswordVendorService = async (email, password) => {
-  return await commonResetPasswordService(Vendor, email, password);
-};
-
 module.exports = {
-  registerVendorService,
-  getVendorProfileService,
-  getAllVendorsService,
-  updateVendorStatusService,
-  loginVendorService,
-  forgotPasswordVendorService,
-  verifyOtpVendorService,
-  resetPasswordVendorService,
+  register:     registerVendorService,
+  getProfile:   getVendorProfileService,
+  getAll:       getAllVendorsService,
+  updateStatus: updateVendorStatusService,
+  login:        loginVendorService,
 };

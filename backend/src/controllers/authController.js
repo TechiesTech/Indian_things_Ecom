@@ -1,135 +1,72 @@
-const { checkAdminRegistrationService, AdminRegisterService, verifyOtpService, setPasswordService, loginUser, forgotPasswordService, userSendOtpService, userVerifyOtpService } = require('../services/authService');
-const { checkRegistrationSchema, registerSchema, verifyOtpSchema, setPasswordSchema, loginSchema, forgotPasswordSchema, userLoginSchema } = require('../validators/adminValidator');
+const authService  = require('../services/authService');
+const vendorService = require('../services/vendorService');
 
-/**
- * Controller to check if a user is already registered
- */
-const checkUser = async (req, res, next) => {
-  const { error, value } = checkRegistrationSchema.validate(req.body);
-  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+// ─── Admin ────────────────────────────────────────────────────────────────────
 
-  try {
-    await checkAdminRegistrationService(value);
-    res.status(200).json({ success: true, message: 'All fields are valid. Proceed to next step.' });
-  } catch (err) {
-    next(err);
-  }
+const adminCheckUser = async (req, res) => {
+  await authService.checkAdminRegistration(req.body);
+  res.status(200).json({ success: true, message: 'All fields are valid. Proceed to next step.' });
 };
 
-/**
- * Controller for Step 1: Registration initiation
- */
-const adminRegister = async (req, res, next) => {
-  const { error, value } = registerSchema.validate(req.body);
-  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
-
-  try {
-    const result = await AdminRegisterService(value);
-    res.status(200).json({ success: true, ...result });
-  } catch (err) {
-    next(err);
-  }
+const adminRegister = async (req, res) => {
+  const result = await authService.adminRegister(req.body);
+  res.status(200).json({ success: true, ...result });
 };
 
-/**
- * Controller for OTP verification (Generic)
- */
-const verifyOtp = async (req, res, next) => {
-  const { error, value } = verifyOtpSchema.validate(req.body);
-  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
-
-  try {
-    const result = await verifyOtpService(value.email, value.otp);
-    res.status(200).json({ success: true, ...result });
-  } catch (err) {
-    next(err);
-  }
+const adminProfile = (req, res) => {
+  res.status(200).json({ success: true, message: 'Welcome to your profile!', admin: req.admin });
 };
 
-/**
- * Controller for Step 3: Password setting
- */
-const setPassword = async (req, res, next) => {
-  const { error, value } = setPasswordSchema.validate(req.body);
-  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
+// ─── Shared (admin + vendor) ──────────────────────────────────────────────────
 
-  try {
-    const result = await setPasswordService(value.email, value.password);
-    res.status(201).json({ success: true, ...result });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * Controller for Login
- */
-const login = async (req, res, next) => {
-  const { error, value } = loginSchema.validate(req.body);
-  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
-
-  try {
-    const result = await loginUser(value.email, value.password);
-    res.status(200).json({ success: true, ...result });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
- * Controller for Forgot Password (Send OTP)
- */
-const forgotPassword = async (req, res, next) => {
-  const { error, value } = forgotPasswordSchema.validate(req.body);
-  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
-
-  try {
-    const result = await forgotPasswordService(value.email);
-    res.status(200).json({ success: true, ...result });
-  } catch (err) {
-    next(err);
-  }
+const login = async (req, res) => {
+  const result = await authService.login(req.body.email, req.body.password);
+  res.status(200).json({ success: true, ...result });
 };
 
 
-
-/**
- * Controller for User Send OTP (Sign Up / Login init)
- */
-const userSendOtp = async (req, res, next) => {
-  const { error, value } = userLoginSchema.validate(req.body);
-  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
-
-  try {
-    const result = await userSendOtpService(value);
-    res.status(200).json({ success: true, ...result });
-  } catch (err) {
-    next(err);
-  }
+const forgotPassword = async (req, res) => {
+  const result = await authService.forgotPassword(req.body.email);
+  res.status(200).json({ success: true, ...result });
 };
 
-/**
- * Controller for User Verify OTP (Complete Login)
- */
-const userVerifyOtp = async (req, res, next) => {
-  const { error, value } = verifyOtpSchema.validate(req.body);
-  if (error) return res.status(400).json({ success: false, message: error.details[0].message });
-
-  try {
-    const result = await userVerifyOtpService(value.email, value.otp);
-    res.status(200).json({ success: true, ...result });
-  } catch (err) {
-    next(err);
-  }
+const verifyOtp = async (req, res) => {
+  const result = await authService.verifyOtp(req.body.email, req.body.otp);
+  res.status(200).json({ success: true, ...result });
 };
 
+const resetPassword = async (req, res) => {
+  const result = await authService.setPassword(req.body.email, req.body.password);
+  res.status(200).json({ success: true, ...result });
+};
+
+// ─── Vendor ───────────────────────────────────────────────────────────────────
+
+const vendorRegister = async (req, res) => {
+  const result = await vendorService.register(req.body);
+  res.status(201).json({ success: true, ...result });
+};
+
+// ─── Customer ─────────────────────────────────────────────────────────────────
+
+const userSendOtp = async (req, res) => {
+  const result = await authService.userSendOtp(req.body);
+  res.status(200).json({ success: true, ...result });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 module.exports = {
-  checkUser,
+  // Admin
+  adminCheckUser,
   adminRegister,
-  verifyOtp,
-  setPassword,
+  adminProfile,
+  // Shared
   login,
   forgotPassword,
+  verifyOtp,
+  resetPassword,
+  // Vendor
+  vendorRegister,
+  // User
   userSendOtp,
-  userVerifyOtp,
 };

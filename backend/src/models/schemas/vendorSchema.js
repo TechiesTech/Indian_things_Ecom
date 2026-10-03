@@ -1,107 +1,86 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const { VENDOR_STATUS } = require('../../utils/constants');
 
-/**
- * Vendor Schema
- * Defines the structure for vendor details.
- */
-const vendorSchema = new mongoose.Schema({
-  personName: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  phoneNumber: {
-    type: String,
-    required: true,
-    match: /^\d{10}$/
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true,
-    match: /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/
-  },
-  password: {
-    type: String,
-    required: true,
-    minlength: 8,
-    select: false
-  },
-  role: {
-    type: String,
-    default: 'vendor'
-  },
-  companyName: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  companyAddress: {
-    street: { type: String, required: true, trim: true },
-    city: { type: String, required: true, trim: true },
-    mandal: { type: String, required: true, trim: true },
-    district: { type: String, required: true, trim: true },
-    state: { type: String, required: true, trim: true },
-    pincode: { type: String, required: true, match: /^\d{6}$/ }
-  },
-  servicesProvided: {
-    type: [{
-      type: String,
-      enum: [
-        'FunctionHall',
-        'MakeUpArtist',
-        'Decoration tent house',
-        'Lightings',
-        'Catering',
-        'Mehandi',
-        'DJ band',
-        'PhotoGraphy/video',
-        'Cooking master'
+const { ObjectId } = mongoose.Schema.Types;
+
+const vendorSchema = new mongoose.Schema(
+  {
+    // Login details (name, email, phone, password) live in User
+    userId: { type: ObjectId, ref: 'User', required: true, unique: true },
+
+    businessName: { type: String, required: true, trim: true, maxlength: 150 },
+
+    address: {
+      street: { type: String, required: true, trim: true },
+      city: { type: String, required: true, trim: true },
+      mandal: { type: String, trim: true },
+      pincode: { type: String, required: true, match: /^[1-9]\d{5}$/ },
+    },
+    // Products inherit these two
+    stateId: { type: ObjectId, ref: 'State', required: true },
+    districtId: { type: ObjectId, ref: 'District', required: true },
+
+    // Vendor types these in by hand, for example "Handmade soaps", "Organic honey"
+    servicesProvided: {
+      type: [{ type: String, trim: true, minlength: 2, maxlength: 60 }],
+      validate: [
+        { validator: (v) => v.length > 0, message: 'At least one service is required' },
+        { validator: (v) => v.length <= 10, message: 'Maximum 10 services allowed' },
       ],
-      trim: true
-    }],
-    required: true,
-    validate: [v => Array.isArray(v) && v.length > 0, 'At least one service is required']
-  },
-  serviceImages: {
-    type: [String],
-    required: true,
-    validate: [v => Array.isArray(v) && v.length > 0, 'At least one service image is required']
-  },
-  socialLinks: {
-    instagram: { type: String, trim: true },
-    facebook: { type: String, trim: true },
-    youtube: { type: String, trim: true },
-    whatsapp: { type: String, trim: true }
-  },
-  status: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
-  },
-  otp: {
-    type: String
-  },
-  otpExpires: {
-    type: Date
-  }
-}, {
-  timestamps: true,
-});
+    },
 
-// Automatically hash password before saving
-vendorSchema.pre('save', async function () {
-  if (!this.isModified('password') || !this.password) return;
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
+    gstin: {
+      type: String,
+      uppercase: true,
+      trim: true,
+      match: /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/,
+    },
+    pan: { type: String, required: true, uppercase: true, trim: true, match: /^[A-Z]{5}\d{4}[A-Z]$/ },
 
-// Helper to compare passwords for login
-vendorSchema.methods.comparePassword = async function (enteredPassword) {
-  if (!this.password) return false;
-  return await bcrypt.compare(enteredPassword, this.password);
-};
+    // Hidden from every query unless asked with .select('+bank')
+    bank: {
+      type: {
+        accountNo: { type: String, required: true },
+        ifsc: { type: String, required: true, uppercase: true, match: /^[A-Z]{4}0[A-Z0-9]{6}$/ },
+        holderName: { type: String, required: true, trim: true },
+      },
+      select: false,
+    },
+
+    kycDocs: { type: [String], select: false },
+    shopImages: {
+      type: [String],
+      validate: [(v) => v.length > 0, 'At least one shop image is required'],
+    },
+
+    socialLinks: {
+      instagram: { type: String, trim: true },
+      facebook: { type: String, trim: true },
+      youtube: { type: String, trim: true },
+      whatsapp: { type: String, trim: true },
+    },
+
+    status: { type: String, enum: Object.values(VENDOR_STATUS), default: VENDOR_STATUS.PENDING },
+    rejectionReason: { type: String, trim: true },
+    approvedBy: { type: ObjectId, ref: 'User' },
+    approvedAt: { type: Date },
+
+    // null means use the category or platform default
+    commissionOverride: { type: Number, min: 0, max: 100, default: null },
+  },
+  { timestamps: true }
+);
+
+// Admin list: filter by status, newest first
+vendorSchema.index({ status: 1, createdAt: -1 });
+// Admin filter by state and district
+vendorSchema.index({ stateId: 1, districtId: 1, status: 1 });
+// Same business cannot register twice (GSTIN is optional, so sparse)
+vendorSchema.index({ gstin: 1 }, { unique: true, sparse: true });
+vendorSchema.index({ pan: 1 }, { unique: true });
+// Admin search by business name
+vendorSchema.index({ businessName: 'text' });
+// Search vendors by what they provide
+vendorSchema.index({ servicesProvided: 1 });
 
 module.exports = vendorSchema;
