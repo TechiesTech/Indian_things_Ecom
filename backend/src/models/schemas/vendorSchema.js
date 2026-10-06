@@ -83,6 +83,4 @@ vendorSchema.index({ businessName: 'text' });
 // Search vendors by what they provide
 vendorSchema.index({ servicesProvided: 1 });
 
-const Vendor = mongoose.model('Vendor', vendorSchema, 'vendors');
-
-module.exports = Vendor;
+module.exports = mongoose.model('Vendor', vendorSchema, 'vendors');
