@@ -31,47 +31,27 @@ const updateProfileSchema = Joi.object({
 
 // ─── Address (POST — all required fields) ─────────────────────────────────────
 
-const addressSchema = Joi.object({
-  fullName: Joi.string().trim().max(100).required().messages({
-    'string.empty': 'Full name is required.',
-    'any.required': 'Full name is required.',
-  }),
-  phone: Joi.string().pattern(/^[6-9]\d{9}$/).required().messages({
-    'string.pattern.base': 'Phone must be a valid 10-digit Indian mobile number.',
-    'any.required': 'Phone is required.',
-  }),
-  houseFlat: Joi.string().trim().max(200).required().messages({
-    'string.empty': 'House/Flat is required.',
-    'any.required': 'House/Flat is required.',
-  }),
-  streetArea: Joi.string().trim().max(200).required().messages({
-    'string.empty': 'Street/Area is required.',
-    'any.required': 'Street/Area is required.',
-  }),
-  landmark: Joi.string().trim().max(200).allow('', null),
-  city: Joi.string().trim().required().messages({
-    'string.empty': 'City is required.',
-    'any.required': 'City is required.',
-  }),
-  state: Joi.string().trim().required().messages({
-    'string.empty': 'State is required.',
-    'any.required': 'State is required.',
-  }),
-  pincode: Joi.string().pattern(/^[1-9]\d{5}$/).required().messages({
-    'string.pattern.base': 'Pincode must be a valid 6-digit Indian pincode.',
-    'any.required': 'Pincode is required.',
-  }),
-  label:     Joi.string().valid('Home', 'Work').default('Home'),
-  isDefault: Joi.boolean().default(false),
+const addAddressSchema = Joi.object({
+  fullName:   Joi.string().trim().max(100).required(),
+  phone:      Joi.string().pattern(/^[6-9]\d{9}$/).required()
+                .messages({ 'string.pattern.base': 'Address phone must be a valid 10-digit Indian mobile number.' }),
+  houseFlat:  Joi.string().trim().max(200).required(),
+  streetArea: Joi.string().trim().max(200).required(),
+  landmark:   Joi.string().trim().max(200).allow(''),
+  city:       Joi.string().trim().required(),
+  state:      Joi.string().trim().required(),
+  pincode:    Joi.string().pattern(/^[1-9]\d{5}$/).required()
+                .messages({ 'string.pattern.base': 'Pincode must be a valid 6-digit pincode.' }),
+  label:      Joi.string().trim().max(30),
+  isDefault:  Joi.boolean(),
 });
 
-// ─── Address (PATCH — all optional, min 1 field) ──────────────────────────────
+// ─── Address (PATCH — all optional, min 1, isDefault only true allowed) ───────
 
-const updateAddressSchema = addressSchema.fork(
-  ['fullName', 'phone', 'houseFlat', 'streetArea', 'city', 'state', 'pincode'],
-  (field) => field.optional()
-).min(1).messages({
-  'object.min': 'At least one field is required to update.',
-});
+const updateAddressSchema = addAddressSchema
+  .fork(Object.keys(addAddressSchema.describe().keys), (field) => field.optional())
+  .keys({ isDefault: Joi.boolean().valid(true) })
+  .min(1);
 
-module.exports = { updateProfileSchema, addressSchema, updateAddressSchema };
+module.exports = { updateProfileSchema, addAddressSchema, updateAddressSchema };
+
