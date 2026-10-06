@@ -1,6 +1,12 @@
 const authService  = require('../services/authService');
 const vendorService = require('../services/vendorService');
 
+// Extract client info from the request for login logging
+const getMeta = (req) => ({
+  ip:        req.ip || req.headers['x-forwarded-for'] || '',
+  userAgent: req.headers['user-agent'] || '',
+});
+
 // ─── Admin ────────────────────────────────────────────────────────────────────
 
 const adminCheckUser = async (req, res) => {
@@ -20,7 +26,7 @@ const adminProfile = (req, res) => {
 // ─── Shared (admin + vendor) ──────────────────────────────────────────────────
 
 const login = async (req, res) => {
-  const result = await authService.login(req.body.email, req.body.password);
+  const result = await authService.login(req.body.email, req.body.password, getMeta(req));
   res.status(200).json({ success: true, ...result });
 };
 
@@ -31,7 +37,7 @@ const forgotPassword = async (req, res) => {
 };
 
 const verifyOtp = async (req, res) => {
-  const result = await authService.verifyOtp(req.body.email, req.body.otp);
+  const result = await authService.verifyOtp(req.body.email, req.body.otp, getMeta(req));
   res.status(200).json({ success: true, ...result });
 };
 

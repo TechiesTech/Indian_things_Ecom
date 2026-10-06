@@ -6,12 +6,20 @@ const { ObjectId } = mongoose.Schema.Types;
 // Delivery addresses saved by the customer (added at checkout)
 const addressSchema = new mongoose.Schema(
   {
-    label: { type: String, trim: true, maxlength: 30, default: 'Home' },
-    line1: { type: String, required: true, trim: true, maxlength: 200 },
-    city: { type: String, required: true, trim: true },
-    districtId: { type: ObjectId, ref: 'District' },
-    stateId: { type: ObjectId, ref: 'State' },
-    pincode: { type: String, required: true, match: /^[1-9]\d{5}$/ },
+    // Contact for this delivery address
+    fullName: { type: String, required: true, trim: true, maxlength: 100 },
+    phone:    { type: String, required: true, match: /^[6-9]\d{9}$/ },
+
+    // Address lines
+    houseFlat:  { type: String, required: true, trim: true, maxlength: 200 },
+    streetArea: { type: String, required: true, trim: true, maxlength: 200 },
+    landmark:   { type: String, trim: true, maxlength: 200 },
+    city:       { type: String, required: true, trim: true },
+    state:      { type: String, required: true, trim: true },
+    pincode:    { type: String, required: true, match: /^[1-9]\d{5}$/ },
+
+    // Label shown in UI ('Home' / 'Work')
+    label:     { type: String, trim: true, maxlength: 30, default: 'Home' },
     isDefault: { type: Boolean, default: false },
   },
   { _id: true }
@@ -39,6 +47,16 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: Object.values(ROLES), default: ROLES.CUSTOMER },
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+
+    // Extended profile
+    dateOfBirth: { type: Date },
+    gender:      { type: String, enum: ['male', 'female', 'other'] },
+    preferences: {
+      emailNotifications: { type: Boolean, default: true },
+      smsNotifications:   { type: Boolean, default: true },
+      promotionalOffers:  { type: Boolean, default: true },
+      orderUpdates:       { type: Boolean, default: true },
+    },
 
     avatar: { type: String },
     addresses: {

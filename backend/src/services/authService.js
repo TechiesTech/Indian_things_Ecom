@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { user: userRepository, otp: otpRepository } = require('../repositories/authRepository');
+const LoginLog = require('../models/schemas/loginLogSchema');
 const { sendOtpEmail } = require('../config/NodeMailer');
 const {
   ROLES,
@@ -16,6 +17,9 @@ const {
 const PASSWORD_ROUNDS = 12;
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
+
+// Fire-and-forget — a log write failure must never break the login flow
+const writeLog = (data) => LoginLog.create(data).catch(() => {});
 
 const hashOtp = (otp) =>
   crypto.createHmac('sha256', process.env.JWT_SECRET).update(otp).digest('hex');
@@ -82,18 +86,36 @@ const registerVendorService = async ({
   };
 };
 
-const loginUser = async (email, password) => {
+const loginUser = async (email, password, meta = {}) => {
   const user = await userRepository.findByEmailWithPassword(email);
-  const isValid = user?.passwordHash && (await bcrypt.compare(password, user.passwordHash));
-  if (!isValid) throw fail(401, 'Invalid email or password.');
 
-  if (!user.isActive) throw fail(403, 'Your account has been deactivated.');
+  // Unknown email
+  if (!user) {
+    writeLog({ email, authProvider: AUTH_PROVIDER.LOCAL, success: false, failReason: 'user_not_found', ...meta });
+    throw fail(401, 'Invalid email or password.');
+  }
 
+  // Wrong password
+  const isValid = user.passwordHash && (await bcrypt.compare(password, user.passwordHash));
+  if (!isValid) {
+    writeLog({ email, userId: user._id, role: user.role, authProvider: AUTH_PROVIDER.LOCAL, success: false, failReason: 'invalid_credentials', ...meta });
+    throw fail(401, 'Invalid email or password.');
+  }
+
+  // Deactivated account
+  if (!user.isActive) {
+    writeLog({ email, userId: user._id, role: user.role, authProvider: AUTH_PROVIDER.LOCAL, success: false, failReason: 'account_deactivated', ...meta });
+    throw fail(403, 'Your account has been deactivated.');
+  }
+
+  // Vendor not yet approved
   if (user.role === ROLES.VENDOR && user.vendor.status !== VENDOR_STATUS.APPROVED) {
+    writeLog({ email, userId: user._id, role: user.role, authProvider: AUTH_PROVIDER.LOCAL, success: false, failReason: 'vendor_not_approved', ...meta });
     throw fail(403, `Your vendor account is ${user.vendor.status.toLowerCase()}.`);
   }
 
   await userRepository.updateLastLogin(user._id);
+  writeLog({ email, userId: user._id, role: user.role, authProvider: AUTH_PROVIDER.LOCAL, success: true, ...meta });
   return { token: signToken(user), user: withoutPassword(user) };
 };
 
@@ -119,7 +141,7 @@ const userSendOtpService = async ({ name, email, mobile }) => {
   return { message: 'OTP sent to your email.' };
 };
 
-const completeCustomerLogin = async ({ _id, email, payload }) => {
+const completeCustomerLogin = async ({ _id, email, payload }, meta = {}) => {
   await otpRepository.remove(_id);
 
   const user = await userRepository.findOrCreateAndMarkLogin(email, {
@@ -129,20 +151,32 @@ const completeCustomerLogin = async ({ _id, email, payload }) => {
     authProvider: AUTH_PROVIDER.OTP,
     isVerified: true,
   });
-  if (!user.isActive) throw fail(403, 'Your account has been deactivated.');
 
+  if (!user.isActive) {
+    writeLog({ email, userId: user._id, role: user.role, authProvider: AUTH_PROVIDER.OTP, success: false, failReason: 'account_deactivated', ...meta });
+    throw fail(403, 'Your account has been deactivated.');
+  }
+
+  writeLog({ email, userId: user._id, role: user.role, authProvider: AUTH_PROVIDER.OTP, success: true, ...meta });
   return { token: signToken(user), user };
 };
 
-const verifyOtpService = async (email, otp) => {
+const verifyOtpService = async (email, otp, meta = {}) => {
   const record = await otpRepository.consumeAttempt(email, OTP_MAX_ATTEMPTS);
-  if (!record || !record.otpHash) throw fail(400, 'OTP is invalid, expired or too many attempts. Request a new one.');
 
+  // OTP missing, expired, or max attempts exceeded
+  if (!record || !record.otpHash) {
+    writeLog({ email, authProvider: AUTH_PROVIDER.OTP, success: false, failReason: 'too_many_attempts', ...meta });
+    throw fail(400, 'OTP is invalid, expired or too many attempts. Request a new one.');
+  }
+
+  // Wrong OTP value
   if (!isSameHash(record.otpHash, hashOtp(otp))) {
+    writeLog({ email, authProvider: AUTH_PROVIDER.OTP, success: false, failReason: 'invalid_otp', ...meta });
     throw fail(400, `Invalid OTP. ${OTP_MAX_ATTEMPTS - record.attempts} attempt(s) left.`);
   }
 
-  if (record.purpose === OTP_PURPOSE.CUSTOMER_LOGIN) return completeCustomerLogin(record);
+  if (record.purpose === OTP_PURPOSE.CUSTOMER_LOGIN) return completeCustomerLogin(record, meta);
 
   await otpRepository.markVerified(record._id, new Date(Date.now() + VERIFIED_TTL_MS));
   return { message: 'OTP verified successfully.' };
