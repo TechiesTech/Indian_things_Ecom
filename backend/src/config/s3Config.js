@@ -14,10 +14,25 @@ const s3Client = new S3Client({
   forcePathStyle: true, // This is required for MinIO to work correctly
 });
 
+const getMissingMinioSettings = () =>
+  ['MINIO_ENDPOINT', 'MINIO_ACCESS_KEY', 'MINIO_SECRET_KEY', 'MINIO_BUCKET_NAME']
+    .filter((setting) => !process.env[setting]);
+
+const isMinioConfigured = () => getMissingMinioSettings().length === 0;
+
 /**
  * Ensures the bucket exists and is set to public read mode.
  */
 const initBucket = async () => {
+  const missingSettings = getMissingMinioSettings();
+  if (missingSettings.length > 0) {
+    console.warn(
+      `[MinIO] Disabled; missing configuration: ${missingSettings.join(', ')}. ` +
+      'Vendor image uploads will return HTTP 503.'
+    );
+    return;
+  }
+
   const bucketName = process.env.MINIO_BUCKET_NAME;
 
   try {
@@ -56,4 +71,4 @@ const initBucket = async () => {
   }
 };
 
-module.exports = { s3Client, initBucket };
+module.exports = { s3Client, initBucket, isMinioConfigured };

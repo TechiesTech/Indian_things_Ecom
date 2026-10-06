@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useCart } from '../context/CartContext';
 
 const authApi = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -28,10 +28,10 @@ interface UserOtpVerifyResponse {
   message?: string;
   token: string;
   user: {
-    id: string;
+    _id: string;
     name: string;
     email: string;
-    mobile: string;
+    phone: string;
   };
 }
 
@@ -51,7 +51,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     try {
-      const { data: result } = await authApi.post('/api/auth/userLoginOtp', {
+      const { data: result } = await authApi.post('/auth/user/sendOtp', {
         name: details.name.trim(),
         email: details.email.trim(),
         mobile: details.mobile.trim(),
@@ -77,7 +77,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     try {
-      const { data: result } = await authApi.post<UserOtpVerifyResponse>('/api/auth/userVerifyOtp', {
+      const { data: result } = await authApi.post<UserOtpVerifyResponse>('/auth/verifyOtp', {
         email: details.email.trim(),
         otp: otp.trim(),
       });
@@ -88,10 +88,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
 
       sessionStorage.setItem('it_user_token', result.token);
       updateUserProfile({
-        id: result.user.id,
+        id: result.user._id,
         fullName: result.user.name,
         email: result.user.email,
-        phone: result.user.mobile,
+        phone: result.user.phone,
       });
       onLoginSuccess();
     } catch (requestError) {
