@@ -36,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
     currentCity,
     currentPincode,
     orders,
+    userProfile,
   } = useCart();
 
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -186,7 +187,7 @@ export const Header: React.FC<HeaderProps> = ({
               }}
               className="rounded border border-transparent p-1.5 text-left text-xs leading-tight transition-colors hover:border-slate-500 focus:outline-none"
             >
-              <span className="block text-[11px] text-slate-400">Hello, Rahul</span>
+              <span className="block text-[11px] text-slate-400">Hello, {userProfile.fullName.split(' ')[0]}</span>
               <span className="flex items-center gap-0.5 font-bold text-white">
                 Account &amp; Lists <ChevronDown className="h-3 w-3 text-slate-400" />
               </span>
@@ -202,7 +203,7 @@ export const Header: React.FC<HeaderProps> = ({
                       Prime
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500">rahul.sharma@example.com</p>
+                  <p className="text-[11px] text-slate-500">{userProfile.email}</p>
                 </div>
 
                 <div className="space-y-1 text-xs">
