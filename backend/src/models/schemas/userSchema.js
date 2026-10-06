@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const { ROLES, AUTH_PROVIDER } = require('../../utils/constants');
 
-const { ObjectId } = mongoose.Schema.Types;
 
 // Delivery addresses saved by the customer (added at checkout)
 const addressSchema = new mongoose.Schema(
@@ -18,8 +17,8 @@ const addressSchema = new mongoose.Schema(
     state:      { type: String, required: true, trim: true },
     pincode:    { type: String, required: true, match: /^[1-9]\d{5}$/ },
 
-    // Label shown in UI ('Home' / 'Work')
-    label:     { type: String, trim: true, maxlength: 30, default: 'Home' },
+    // Label shown in UI — only 'Home' or 'Work' allowed
+    label:     { type: String, enum: ['Home', 'Work'], default: 'Home' },
     isDefault: { type: Boolean, default: false },
   },
   { _id: true }
