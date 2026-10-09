@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { protect, requireAdmin, requireVendor, requireCustomer } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 const { validate } = require('../middleware/validateMiddleware');
 const { parseVendorBody } = require('../middleware/parseVendorBody');
@@ -37,7 +37,7 @@ router.post('/resetPassword', validate(setPasswordSchema), resetPassword);
 
 router.post('/admin/checkUser', validate(checkRegistrationSchema), adminCheckUser);
 router.post('/admin/register', validate(registerSchema), adminRegister);
-router.get('/admin/profile', protect, adminProfile);
+router.get('/admin/profile', protect, requireAdmin, adminProfile);
 
 router.post(
   '/vendor/register',

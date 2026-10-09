@@ -18,13 +18,13 @@ const updateUserById = (id, data) =>
     User.findByIdAndUpdate(
         id,
         { $set: toSetFields(data) },
-        { new: true }
+        { returnDocument: 'after' }
     ).lean();
 
 // ─── Addresses ────────────────────────────────────────────────────────────────
 
 const currentAddresses = { $ifNull: ['$addresses', []] };
-const pipelineOptions  = { new: true, updatePipeline: true };
+const pipelineOptions  = { returnDocument: 'after', updatePipeline: true };
 
 const userExists = (id) => User.exists({ _id: id });
 

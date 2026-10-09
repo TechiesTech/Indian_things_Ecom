@@ -21,7 +21,7 @@ const user = {
     User.findOneAndUpdate(
       { email },
       { $setOnInsert: newUserData, $set: { lastLoginAt: new Date() } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     ).lean(),
 
   updateLastLogin: (id) =>
@@ -43,7 +43,7 @@ const otp = {
     Otp.findOneAndUpdate(
       { email, verified: false, expiresAt: { $gt: new Date() }, attempts: { $lt: maxAttempts } },
       { $inc: { attempts: 1 } },
-      { new: true }
+      { returnDocument: 'after' }
     ).select('+otpHash').lean(),
 
   markVerified: (id, expiresAt) =>

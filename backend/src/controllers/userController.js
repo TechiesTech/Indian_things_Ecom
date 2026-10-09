@@ -4,13 +4,13 @@ const userService = require('../services/userService');
 
 // GET /api/users/getUserProfile
 const getUserProfile = async (req, res) => {
-    const result = await userService.getUserProfile(req.admin.id);
+    const result = await userService.getUserProfile(req.user.id);
     res.status(200).json({ success: true, ...result });
 };
 
 // PATCH /api/users/updateUserProfile
 const updateUserProfile = async (req, res) => {
-    const result = await userService.updateUserProfile(req.admin.id, req.body);
+    const result = await userService.updateUserProfile(req.user.id, req.body);
     res.status(200).json({ success: true, ...result });
 };
 
@@ -18,25 +18,25 @@ const updateUserProfile = async (req, res) => {
 
 // GET /api/users/getUserAddresses
 const getUserAddresses = async (req, res) => {
-    const result = await userService.getUserAddresses(req.admin.id);
+    const result = await userService.getUserAddresses(req.user.id);
     res.status(200).json({ success: true, ...result });
 };
 
 // POST /api/users/addUserAddress
 const addUserAddress = async (req, res) => {
-    const result = await userService.addUserAddress(req.admin.id, req.body);
+    const result = await userService.addUserAddress(req.user.id, req.body);
     res.status(201).json({ success: true, ...result });
 };
 
 // PATCH /api/users/updateUserAddress/:addressId
 const updateUserAddress = async (req, res) => {
-    const result = await userService.updateUserAddress(req.admin.id, req.params.addressId, req.body);
+    const result = await userService.updateUserAddress(req.user.id, req.params.addressId, req.body);
     res.status(200).json({ success: true, ...result });
 };
 
 // DELETE /api/users/deleteUserAddress/:addressId
 const deleteUserAddress = async (req, res) => {
-    const result = await userService.deleteUserAddress(req.admin.id, req.params.addressId);
+    const result = await userService.deleteUserAddress(req.user.id, req.params.addressId);
     res.status(200).json({ success: true, ...result });
 };
 

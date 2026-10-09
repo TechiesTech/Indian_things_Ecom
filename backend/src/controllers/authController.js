@@ -20,7 +20,7 @@ const adminRegister = async (req, res) => {
 };
 
 const adminProfile = (req, res) => {
-  res.status(200).json({ success: true, message: 'Welcome to your profile!', admin: req.admin });
+  res.status(200).json({ success: true, message: 'Welcome to your profile!', admin: req.user });
 };
 
 // ─── Shared (admin + vendor) ──────────────────────────────────────────────────

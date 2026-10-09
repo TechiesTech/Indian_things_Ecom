@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const { ROLES } = require('../utils/constants');
 
 const protect = (req, res, next) => {
   let token;
@@ -13,11 +14,11 @@ const protect = (req, res, next) => {
     try {
       token = req.headers.authorization.split(' ')[1];
 
-      // 3. jwt.verify() checks if the token is valid and not expired
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      // 3. jwt.verify() checks if the token is valid and not expired (pinned to HS256)
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
 
-      // 4. If valid, the admin's ID and role are attached to the request object
-      req.admin = decoded;
+      // 4. If valid, the user's ID and role are attached to the request object
+      req.user = decoded;
 
       // 5. The request reaches the controller and the actual work happens
       next();
@@ -33,4 +34,15 @@ const protect = (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+const restrictTo = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Forbidden: Insufficient permissions.' });
+  }
+  next();
+};
+
+const requireAdmin = restrictTo(ROLES.ADMIN);
+const requireVendor = restrictTo(ROLES.VENDOR);
+const requireCustomer = restrictTo(ROLES.CUSTOMER);
+
+module.exports = { protect, restrictTo, requireAdmin, requireVendor, requireCustomer };

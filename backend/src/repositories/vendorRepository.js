@@ -27,7 +27,7 @@ const registerIfNotExists = async ({ email, phoneNumber }, data) => {
   return Vendor.findOneAndUpdate(
     { $or: [{ email }, { phoneNumber }] },
     { $setOnInsert: { ...data, password: hashedPassword } },
-    { upsert: true, new: true, setDefaultsOnInsert: true, rawResult: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, rawResult: true }
   );
 };
 
@@ -40,7 +40,7 @@ const findAll = () => {
 };
 
 const updateStatusById = (id, status) => {
-  return Vendor.findByIdAndUpdate(id, { status }, { new: true, runValidators: true });
+  return Vendor.findByIdAndUpdate(id, { status }, { returnDocument: 'after', runValidators: true });
 };
 
 const findByEmailWithPassword = (email) => {

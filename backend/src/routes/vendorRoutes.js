@@ -5,7 +5,7 @@ const {
   getAllVendors,
   updateVendorStatus,
 } = require('../controllers/vendorController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, requireAdmin } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -50,7 +50,7 @@ router.get('/profile/:id', getVendorProfile);
  *       401:
  *         description: Not authorized
  */
-router.get('/all', protect, getAllVendors);
+router.get('/all', protect, requireAdmin, getAllVendors);
 
 /**
  * @swagger
@@ -85,6 +85,6 @@ router.get('/all', protect, getAllVendors);
  *       404:
  *         description: Vendor not found
  */
-router.patch('/approve/:id', protect, updateVendorStatus);
+router.patch('/approve/:id', protect, requireAdmin, updateVendorStatus);
 
 module.exports = router;
