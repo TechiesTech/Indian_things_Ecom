@@ -50,17 +50,17 @@ const assertNotRegistered = async (email, phone) => {
   if (existing) throw fail(409, 'Email or mobile is already registered.');
 };
 
-const checkAdminRegistrationService = async ({ email, mobile }) => {
+const checkAdminRegistration = async ({ email, mobile }) => {
   await assertNotRegistered(email, mobile);
 };
 
-const AdminRegisterService = async ({ name, email, mobile }) => {
+const adminRegister = async ({ name, email, mobile }) => {
   await assertNotRegistered(email, mobile);
   await sendOtp(email, OTP_PURPOSE.ADMIN_REGISTER, { name, phone: mobile });
   return { message: 'OTP sent to your email.' };
 };
 
-const registerVendorService = async ({
+const registerVendor = async ({
   personName, phoneNumber, email, password,
   companyName, companyAddress, servicesProvided, serviceImages, socialLinks,
 }) => {
@@ -88,7 +88,7 @@ const registerVendorService = async ({
   };
 };
 
-const loginUser = async (email, password, meta = {}) => {
+const login = async (email, password, meta = {}) => {
   const user = await userRepository.findByEmailWithPassword(email);
 
   // Unknown email
@@ -121,7 +121,7 @@ const loginUser = async (email, password, meta = {}) => {
   return { token: signToken(user), user: withoutPassword(user) };
 };
 
-const forgotPasswordService = async (email) => {
+const forgotPassword = async (email) => {
   const user = await userRepository.findByEmail(email);
   if (user?.isActive && user.authProvider === AUTH_PROVIDER.LOCAL) {
     await sendOtp(email, OTP_PURPOSE.RESET_PASSWORD);
@@ -129,7 +129,7 @@ const forgotPasswordService = async (email) => {
   return { message: 'If this email is registered, an OTP has been sent.' };
 };
 
-const userSendOtpService = async ({ name, email, mobile }) => {
+const userSendOtp = async ({ name, email, mobile }) => {
   const existing = await userRepository.findByEmailOrPhone(email, mobile);
   if (existing && existing.email !== email) {
     throw fail(409, 'Mobile is already registered with another account.');
@@ -163,7 +163,7 @@ const completeCustomerLogin = async ({ _id, email, payload }, meta = {}) => {
   return { token: signToken(user), user };
 };
 
-const verifyOtpService = async (email, otp, meta = {}) => {
+const verifyOtp = async (email, otp, meta = {}) => {
   const record = await otpRepository.consumeAttempt(email, OTP_MAX_ATTEMPTS);
 
   // OTP missing, expired, or max attempts exceeded
@@ -184,7 +184,7 @@ const verifyOtpService = async (email, otp, meta = {}) => {
   return { message: 'OTP verified successfully.' };
 };
 
-const setPasswordService = async (email, password) => {
+const setPassword = async (email, password) => {
   const record = await otpRepository.consumeVerified(email);
   if (!record) throw fail(403, 'OTP verification required first.');
 
@@ -207,7 +207,7 @@ const setPasswordService = async (email, password) => {
   return { message: 'Password reset successfully.' };
 };
 
-const googleLoginService = async (token, meta = {}) => {
+const googleLogin = async (token, meta = {}) => {
   let ticket;
   try {
     ticket = await googleClient.verifyIdToken({
@@ -246,13 +246,13 @@ const googleLoginService = async (token, meta = {}) => {
 };
 
 module.exports = {
-  checkAdminRegistration: checkAdminRegistrationService,
-  adminRegister: AdminRegisterService,
-  registerVendor: registerVendorService,
-  login: loginUser,
-  forgotPassword: forgotPasswordService,
-  userSendOtp: userSendOtpService,
-  verifyOtp: verifyOtpService,
-  setPassword: setPasswordService,
-  googleLogin: googleLoginService,
+  checkAdminRegistration,
+  adminRegister,
+  registerVendor,
+  login,
+  forgotPassword,
+  userSendOtp,
+  verifyOtp,
+  setPassword,
+  googleLogin,
 };
