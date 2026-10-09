@@ -60,6 +60,11 @@ const userSendOtp = async (req, res) => {
   res.status(200).json({ success: true, ...result });
 };
 
+const googleLogin = async (req, res) => {
+  const result = await authService.googleLogin(req.body.token, getMeta(req));
+  res.status(200).json({ success: true, ...result });
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 module.exports = {
   // Admin
@@ -75,4 +80,5 @@ module.exports = {
   vendorRegister,
   // User
   userSendOtp,
+  googleLogin,
 };

@@ -70,6 +70,12 @@ const userLoginSchema = Joi.object({
   }),
 });
 
+const googleLoginSchema = Joi.object({
+  token: Joi.string().required().messages({
+    'string.empty': 'Google token is required.',
+  }),
+});
+
 module.exports = {
   registerSchema,
   verifyOtpSchema,
@@ -78,4 +84,5 @@ module.exports = {
   userLoginSchema,
   checkRegistrationSchema,
   forgotPasswordSchema,
+  googleLoginSchema,
 };

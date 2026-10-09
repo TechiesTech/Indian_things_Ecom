@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const { user: userRepository, otp: otpRepository } = require('../repositories/authRepository');
 const LoginLog = require('../models/schemas/loginLogSchema');
 const { sendOtpEmail } = require('../config/NodeMailer');
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const {
   ROLES,
   AUTH_PROVIDER,
@@ -205,6 +207,44 @@ const setPasswordService = async (email, password) => {
   return { message: 'Password reset successfully.' };
 };
 
+const googleLoginService = async (token, meta = {}) => {
+  let ticket;
+  try {
+    ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+  } catch (err) {
+    writeLog({ authProvider: AUTH_PROVIDER.GOOGLE, success: false, failReason: 'invalid_credentials', ...meta });
+    throw fail(401, 'Invalid Google token.');
+  }
+
+  const payload = ticket.getPayload();
+  const email = payload.email;
+  const name = payload.name;
+  
+  if (!email) {
+    writeLog({ authProvider: AUTH_PROVIDER.GOOGLE, success: false, failReason: 'invalid_credentials', ...meta });
+    throw fail(400, 'Google token did not provide an email.');
+  }
+
+  const user = await userRepository.findOrCreateAndMarkLogin(email, {
+    name: name || 'Google User',
+    phone: '', // Google does not guarantee phone number
+    role: ROLES.CUSTOMER,
+    authProvider: AUTH_PROVIDER.GOOGLE,
+    isVerified: true,
+  });
+
+  if (!user.isActive) {
+    writeLog({ email, userId: user._id, role: user.role, authProvider: AUTH_PROVIDER.GOOGLE, success: false, failReason: 'account_deactivated', ...meta });
+    throw fail(403, 'Your account has been deactivated.');
+  }
+
+  writeLog({ email, userId: user._id, role: user.role, authProvider: AUTH_PROVIDER.GOOGLE, success: true, ...meta });
+  return { token: signToken(user), user };
+};
+
 module.exports = {
   checkAdminRegistration: checkAdminRegistrationService,
   adminRegister: AdminRegisterService,
@@ -214,4 +254,5 @@ module.exports = {
   userSendOtp: userSendOtpService,
   verifyOtp: verifyOtpService,
   setPassword: setPasswordService,
+  googleLogin: googleLoginService,
 };

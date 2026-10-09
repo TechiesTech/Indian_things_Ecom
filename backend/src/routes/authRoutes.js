@@ -12,6 +12,7 @@ const {
   loginSchema,
   forgotPasswordSchema,
   userLoginSchema,
+  googleLoginSchema,
 } = require('../validators/adminValidator');
 const { registerVendorSchema } = require('../validators/vendorValidator');
 
@@ -25,9 +26,11 @@ const {
   adminProfile,
   vendorRegister,
   userSendOtp,
+  googleLogin,
 } = require('../controllers/authController');
 
 router.post('/login', validate(loginSchema), login);
+router.post('/google', validate(googleLoginSchema), googleLogin);
 router.post('/forgotPassword', validate(forgotPasswordSchema), forgotPassword);
 router.post('/verifyOtp', validate(verifyOtpSchema), verifyOtp);
 router.post('/resetPassword', validate(setPasswordSchema), resetPassword);
