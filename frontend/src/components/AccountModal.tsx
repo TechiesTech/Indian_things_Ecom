@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   User,
@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { Address, PaymentMethod, UserProfile } from '../data/products';
+import { apiClient } from '../api/apiClient';
 
 export const AccountModal: React.FC = () => {
   const {
@@ -93,6 +94,10 @@ export const AccountModal: React.FC = () => {
 
   // User Profile form state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
+
   const [profileForm, setProfileForm] = useState({
     fullName: userProfile.fullName,
     email: userProfile.email,
@@ -101,6 +106,50 @@ export const AccountModal: React.FC = () => {
     gender: userProfile.gender || 'male',
   });
   const [preferencesForm, setPreferencesForm] = useState(userProfile.preferences);
+
+  // Sync profile from backend whenever Account modal opens
+  useEffect(() => {
+    const token = sessionStorage.getItem('it_user_token') || localStorage.getItem('it_user_token');
+    if (token && isAccountModalOpen) {
+      apiClient.get('/users/getUserProfile')
+        .then((res) => {
+          if (res.data?.success && res.data?.user) {
+            const user = res.data.user;
+            let dob = '';
+            if (user.dateOfBirth) {
+              dob = new Date(user.dateOfBirth).toISOString().split('T')[0];
+            }
+            const updatedProfile = {
+              fullName: user.name || userProfile.fullName,
+              email: user.email || userProfile.email,
+              phone: user.phone || userProfile.phone,
+              dateOfBirth: dob || '',
+              gender: (user.gender || userProfile.gender || 'male') as 'male' | 'female' | 'other',
+            };
+            setProfileForm(updatedProfile);
+            if (user.preferences) {
+              setPreferencesForm({
+                emailNotifications: user.preferences.emailNotifications ?? true,
+                smsNotifications: user.preferences.smsNotifications ?? true,
+                promotionalOffers: user.preferences.promotionalOffers ?? true,
+                orderUpdates: user.preferences.orderUpdates ?? true,
+              });
+            }
+            updateUserProfile({
+              fullName: updatedProfile.fullName,
+              email: updatedProfile.email,
+              phone: updatedProfile.phone,
+              dateOfBirth: updatedProfile.dateOfBirth,
+              gender: updatedProfile.gender,
+              preferences: user.preferences || userProfile.preferences,
+            });
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not fetch user profile from API:', err);
+        });
+    }
+  }, [isAccountModalOpen]);
 
   if (!isAccountModalOpen) return null;
 
@@ -250,13 +299,62 @@ export const AccountModal: React.FC = () => {
   };
 
   // User Profile handlers
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUserProfile({
-      ...profileForm,
+    setProfileError('');
+    setProfileSuccess('');
+    setIsSavingProfile(true);
+
+    const payload: {
+      name: string;
+      phone: string;
+      dateOfBirth?: string;
+      gender: 'male' | 'female' | 'other';
+      preferences: {
+        emailNotifications: boolean;
+        smsNotifications: boolean;
+        promotionalOffers: boolean;
+        orderUpdates: boolean;
+      };
+    } = {
+      name: profileForm.fullName.trim(),
+      phone: profileForm.phone.trim(),
+      gender: profileForm.gender as 'male' | 'female' | 'other',
       preferences: preferencesForm,
-    });
-    setIsEditingProfile(false);
+    };
+
+    if (profileForm.dateOfBirth && profileForm.dateOfBirth.trim() !== '') {
+      payload.dateOfBirth = profileForm.dateOfBirth.trim();
+    }
+
+    try {
+      const { data: response } = await apiClient.patch('/users/updateUserProfile', payload);
+
+      if (response.success) {
+        updateUserProfile({
+          fullName: payload.name,
+          phone: payload.phone,
+          dateOfBirth: payload.dateOfBirth,
+          gender: payload.gender,
+          preferences: payload.preferences,
+        });
+        setProfileSuccess(response.message || 'Profile updated successfully!');
+        setTimeout(() => {
+          setIsEditingProfile(false);
+          setProfileSuccess('');
+        }, 1200);
+      } else {
+        setProfileError(response.message || 'Failed to update profile.');
+      }
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to update profile. Please verify you are logged in and backend is running.';
+      setProfileError(errorMessage);
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleCancelProfileEdit = () => {
@@ -268,6 +366,8 @@ export const AccountModal: React.FC = () => {
       gender: userProfile.gender || 'male',
     });
     setPreferencesForm(userProfile.preferences);
+    setProfileError('');
+    setProfileSuccess('');
     setIsEditingProfile(false);
   };
 
@@ -338,13 +438,14 @@ export const AccountModal: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700">Email</label>
+                  <label className="text-xs font-semibold text-slate-700">Email (Registered)</label>
                   <input
                     type="email"
                     value={profileForm.email}
-                    onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
+                    disabled
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-100 p-2 text-xs text-slate-500 cursor-not-allowed"
                   />
+                  <span className="text-[10px] text-slate-400">Email cannot be changed</span>
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-700">Phone</label>
@@ -358,10 +459,9 @@ export const AccountModal: React.FC = () => {
                 <div>
                   <label className="text-xs font-semibold text-slate-700">Date of Birth</label>
                   <input
-                    type="text"
+                    type="date"
                     value={profileForm.dateOfBirth}
                     onChange={(e) => setProfileForm({ ...profileForm, dateOfBirth: e.target.value })}
-                    placeholder="DD-MM-YYYY"
                     className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-xs focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:outline-none"
                   />
                 </div>
@@ -422,15 +522,28 @@ export const AccountModal: React.FC = () => {
                 </div>
               </div>
 
+              {profileError && (
+                <p className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-xs font-semibold text-rose-700">
+                  {profileError}
+                </p>
+              )}
+              {profileSuccess && (
+                <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-700">
+                  {profileSuccess}
+                </p>
+              )}
+
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="rounded-lg bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-xs"
+                  disabled={isSavingProfile}
+                  className="rounded-lg bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-wait shadow-xs flex items-center gap-1.5"
                 >
-                  Save Changes
+                  {isSavingProfile ? 'Saving...' : 'Save Changes'}
                 </button>
                 <button
                   type="button"
+                  disabled={isSavingProfile}
                   onClick={handleCancelProfileEdit}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100"
                 >

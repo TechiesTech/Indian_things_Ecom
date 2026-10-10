@@ -11,7 +11,7 @@ const updateProfileSchema = Joi.object({
     'string.pattern.base': 'Phone must be a valid 10-digit Indian mobile number.',
   }),
 
-  dateOfBirth: Joi.string().isoDate().messages({
+  dateOfBirth: Joi.string().isoDate().allow('', null).messages({
     'string.isoDate': 'Date of birth must be a valid ISO date (YYYY-MM-DD).',
   }),
 

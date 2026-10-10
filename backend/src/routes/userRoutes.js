@@ -16,6 +16,7 @@ const {
 // ─── Profile ──────────────────────────────────────────────────────────────────
 router.get('/getUserProfile',      protect, requireCustomer, getUserProfile);
 router.patch('/updateUserProfile', protect, requireCustomer, validate(updateProfileSchema), updateUserProfile);
+router.put('/updateUserProfile',   protect, requireCustomer, validate(updateProfileSchema), updateUserProfile);
 
 // ─── Addresses ────────────────────────────────────────────────────────────────
 router.get('/getUserAddresses',    protect, requireCustomer, getUserAddresses);
