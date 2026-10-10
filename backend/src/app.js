@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const morgan = require('morgan');
@@ -14,9 +15,14 @@ const userRoutes = require('./routes/userRoutes');
 
 const app = express();
 
-// Security & Parsers
+const allowedOrigins = process.env.FRONTEND_URL
+  ? (process.env.FRONTEND_URL.includes(',')
+      ? process.env.FRONTEND_URL.split(',').map((u) => u.trim())
+      : process.env.FRONTEND_URL.trim())
+  : 'http://localhost:3000';
+
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3001', credentials: true }));
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 // Express 5 compat: req.query is a getter, so we sanitize objects in-place instead of reassigning

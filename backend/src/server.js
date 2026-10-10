@@ -1,7 +1,7 @@
+require('dotenv').config();
 const app = require('./app');
 const connectDB = require('./config/db');
 const { initBucket } = require('./config/s3Config');
-require('dotenv').config();
 
 const PORT = process.env.PORT || 3000;
 
