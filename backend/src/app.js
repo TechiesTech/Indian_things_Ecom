@@ -16,7 +16,7 @@ const app = express();
 
 // Security & Parsers
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000', credentials: true }));
+app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3001', credentials: true }));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 // Express 5 compat: req.query is a getter, so we sanitize objects in-place instead of reassigning
