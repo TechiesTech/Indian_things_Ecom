@@ -596,38 +596,9 @@ export interface Address {
   landmark?: string;
   city: string;
   state: string;
-  type: 'Home' | 'Work';
+  type: 'Home' | 'Work' | 'Other';
   isDefault: boolean;
 }
-
-export const INITIAL_ADDRESSES: Address[] = [
-  {
-    id: 'addr-1',
-    fullName: 'Rahul Sharma',
-    phone: '9876543210',
-    pincode: '500062',
-    houseFlat: 'Flat 402, Sai Residency',
-    streetArea: 'Near ECIL Cross Roads, A.S. Rao Nagar',
-    landmark: 'Opposite Heritage Supermarket',
-    city: 'Hyderabad',
-    state: 'Telangana',
-    type: 'Home',
-    isDefault: true,
-  },
-  {
-    id: 'addr-2',
-    fullName: 'Rahul Sharma (Office)',
-    phone: '9876543210',
-    pincode: '500081',
-    houseFlat: 'Tower B, 7th Floor, Mindspace Tech Park',
-    streetArea: 'Madhapur, Hitech City',
-    landmark: 'Behind Inorbit Mall',
-    city: 'Hyderabad',
-    state: 'Telangana',
-    type: 'Work',
-    isDefault: false,
-  },
-];
 
 export interface OrderItem {
   productId: string;

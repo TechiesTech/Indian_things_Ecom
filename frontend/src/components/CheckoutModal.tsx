@@ -56,16 +56,17 @@ export const CheckoutModal: React.FC = () => {
   const [newAddr, setNewAddr] = useState({
     fullName: '',
     phone: '',
-    pincode: '500062',
+    pincode: '',
     houseFlat: '',
     streetArea: '',
     landmark: '',
     city: 'Hyderabad',
     state: 'Telangana',
-    type: 'Home' as 'Home' | 'Work',
+    type: 'Home' as Address['type'],
     isDefault: false,
   });
   const [addrFormError, setAddrFormError] = useState('');
+  const [isSavingAddr, setIsSavingAddr] = useState(false);
 
   // Delivery Speed Option
   const [deliverySpeed, setDeliverySpeed] = useState<'express' | 'standard'>('express');
@@ -104,27 +105,35 @@ export const CheckoutModal: React.FC = () => {
     setSelectedSavedPaymentId(defaultSavedPayment.id);
   }
 
-  const handleAddNewAddressSubmit = (e: React.FormEvent) => {
+  const handleAddNewAddressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAddr.fullName.trim() || !newAddr.phone.trim() || !newAddr.houseFlat.trim() || !newAddr.streetArea.trim()) {
       setAddrFormError('Please fill in all required delivery fields.');
       return;
     }
-    if (newAddr.phone.replace(/\D/g, '').length < 10) {
-      setAddrFormError('Please enter a valid 10-digit mobile number.');
+    if (!/^[6-9]\d{9}$/.test(newAddr.phone.trim())) {
+      setAddrFormError('Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+    if (!/^[1-9]\d{5}$/.test(newAddr.pincode.trim())) {
+      setAddrFormError('Please enter a valid 6-digit PIN code.');
       return;
     }
 
     setAddrFormError('');
-    if (editingAddressId) {
-      updateAddress(editingAddressId, newAddr);
-      const updated = { ...newAddr, id: editingAddressId };
-      setActiveAddress(updated);
-      setEditingAddressId(null);
-    } else {
-      const created = addAddress(newAddr);
-      setActiveAddress(created);
+    setIsSavingAddr(true);
+    try {
+      if (editingAddressId) {
+        await updateAddress(editingAddressId, newAddr);
+        setEditingAddressId(null);
+      } else {
+        await addAddress(newAddr);
+      }
       setIsAddingNewAddress(false);
+    } catch (err) {
+      setAddrFormError(err instanceof Error ? err.message : 'Failed to save address.');
+    } finally {
+      setIsSavingAddr(false);
     }
   };
 
@@ -248,18 +257,16 @@ export const CheckoutModal: React.FC = () => {
             {/* Step 1 */}
             <div className="flex items-center gap-2">
               <div
-                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                  currentStep >= 1
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${currentStep >= 1
                     ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-300'
                     : 'bg-slate-200 text-slate-600'
-                }`}
+                  }`}
               >
                 {currentStep > 1 ? <Check className="h-4 w-4" /> : '1'}
               </div>
               <span
-                className={`text-xs font-bold ${
-                  currentStep >= 1 ? 'text-slate-900' : 'text-slate-400'
-                }`}
+                className={`text-xs font-bold ${currentStep >= 1 ? 'text-slate-900' : 'text-slate-400'
+                  }`}
               >
                 Delivery Address
               </span>
@@ -270,18 +277,16 @@ export const CheckoutModal: React.FC = () => {
             {/* Step 2 */}
             <div className="flex items-center gap-2">
               <div
-                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                  currentStep >= 2
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${currentStep >= 2
                     ? 'bg-amber-400 text-slate-950 ring-2 ring-amber-300'
                     : 'bg-slate-200 text-slate-600'
-                }`}
+                  }`}
               >
                 {currentStep > 2 ? <Check className="h-4 w-4" /> : '2'}
               </div>
               <span
-                className={`text-xs font-bold ${
-                  currentStep >= 2 ? 'text-slate-900' : 'text-slate-400'
-                }`}
+                className={`text-xs font-bold ${currentStep >= 2 ? 'text-slate-900' : 'text-slate-400'
+                  }`}
               >
                 Payment Gateway
               </span>
@@ -292,18 +297,16 @@ export const CheckoutModal: React.FC = () => {
             {/* Step 3 */}
             <div className="flex items-center gap-2">
               <div
-                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                  currentStep === 3
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${currentStep === 3
                     ? 'bg-emerald-500 text-white ring-2 ring-emerald-300'
                     : 'bg-slate-200 text-slate-600'
-                }`}
+                  }`}
               >
                 3
               </div>
               <span
-                className={`text-xs font-bold ${
-                  currentStep === 3 ? 'text-emerald-700' : 'text-slate-400'
-                }`}
+                className={`text-xs font-bold ${currentStep === 3 ? 'text-emerald-700' : 'text-slate-400'
+                  }`}
               >
                 Order Placed
               </span>
@@ -476,15 +479,25 @@ export const CheckoutModal: React.FC = () => {
                           checked={newAddr.type === 'Work'}
                           onChange={() => setNewAddr({ ...newAddr, type: 'Work' })}
                         />
-                        <span>Work (10 AM - 6 PM delivery)</span>
+                         <span>Work (10 AM - 6 PM delivery)</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs text-slate-800 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="addrType"
+                          checked={newAddr.type === 'Other'}
+                          onChange={() => setNewAddr({ ...newAddr, type: 'Other' })}
+                        />
+                        <span>Other</span>
                       </label>
                     </div>
 
                     <button
                       type="submit"
-                      className="mt-2 w-full rounded-lg bg-amber-400 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-sm"
+                      disabled={isSavingAddr}
+                      className="mt-2 w-full rounded-lg bg-amber-400 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-sm disabled:opacity-50 disabled:cursor-wait"
                     >
-                      Save &amp; Use this Address
+                      {isSavingAddr ? 'Saving...' : 'Save & Use this Address'}
                     </button>
                   </form>
                 ) : (
@@ -496,11 +509,10 @@ export const CheckoutModal: React.FC = () => {
                         <div
                           key={addr.id}
                           onClick={() => setActiveAddress(addr)}
-                          className={`relative cursor-pointer rounded-xl border p-4 transition-all ${
-                            isSelected
+                          className={`relative cursor-pointer rounded-xl border p-4 transition-all ${isSelected
                               ? 'border-amber-400 bg-amber-50/50 ring-2 ring-amber-400/50 shadow-sm'
                               : 'border-slate-200 bg-white hover:border-slate-300'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex items-start gap-3">
@@ -568,11 +580,10 @@ export const CheckoutModal: React.FC = () => {
                   <div className="mt-2.5 space-y-2">
                     <label
                       onClick={() => setDeliverySpeed('express')}
-                      className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 text-xs transition-all ${
-                        deliverySpeed === 'express'
+                      className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 text-xs transition-all ${deliverySpeed === 'express'
                           ? 'border-amber-400 bg-amber-50/40 font-semibold'
                           : 'border-slate-200 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2.5">
                         <input
@@ -596,11 +607,10 @@ export const CheckoutModal: React.FC = () => {
 
                     <label
                       onClick={() => setDeliverySpeed('standard')}
-                      className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 text-xs transition-all ${
-                        deliverySpeed === 'standard'
+                      className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 text-xs transition-all ${deliverySpeed === 'standard'
                           ? 'border-amber-400 bg-amber-50/40 font-semibold'
                           : 'border-slate-200 hover:bg-slate-50'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2.5">
                         <input
@@ -730,11 +740,10 @@ export const CheckoutModal: React.FC = () => {
                             setPaymentMethod('saved');
                             setSelectedSavedPaymentId(method.id);
                           }}
-                          className={`cursor-pointer rounded-lg border p-3 text-xs transition-all ${
-                            paymentMethod === 'saved' && selectedSavedPaymentId === method.id
+                          className={`cursor-pointer rounded-lg border p-3 text-xs transition-all ${paymentMethod === 'saved' && selectedSavedPaymentId === method.id
                               ? 'border-sky-500 bg-sky-100/50 ring-2 ring-sky-400/50'
                               : 'border-slate-200 bg-white hover:border-slate-300'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -753,11 +762,11 @@ export const CheckoutModal: React.FC = () => {
                                 {method.type === 'upi' && <Smartphone className="h-4 w-4 text-slate-600" />}
                                 {method.type === 'netbanking' && <Building2 className="h-4 w-4 text-slate-600" />}
                                 <span className="font-semibold text-slate-900">
-                                  {method.type === 'card' 
-                                    ? `•••• ${method.cardNumber?.slice(-4)}` 
-                                    : method.type === 'upi' 
-                                    ? method.upiId 
-                                    : `${method.bankName} •••• ${method.accountLast4}`}
+                                  {method.type === 'card'
+                                    ? `•••• ${method.cardNumber?.slice(-4)}`
+                                    : method.type === 'upi'
+                                      ? method.upiId
+                                      : `${method.bankName} •••• ${method.accountLast4}`}
                                 </span>
                               </div>
                             </div>
@@ -774,11 +783,10 @@ export const CheckoutModal: React.FC = () => {
                 {/* Payment Option 1: SBI Card (Promotional & Recommended) */}
                 <div
                   onClick={() => setPaymentMethod('sbi_card')}
-                  className={`cursor-pointer rounded-xl border p-4 transition-all ${
-                    paymentMethod === 'sbi_card'
+                  className={`cursor-pointer rounded-xl border p-4 transition-all ${paymentMethod === 'sbi_card'
                       ? 'border-sky-500 bg-sky-50/50 ring-2 ring-sky-400/50 shadow-md'
                       : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
@@ -847,11 +855,10 @@ export const CheckoutModal: React.FC = () => {
                 {/* Payment Option 2: UPI (Google Pay, PhonePe, Paytm) */}
                 <div
                   onClick={() => setPaymentMethod('upi')}
-                  className={`cursor-pointer rounded-xl border p-4 transition-all ${
-                    paymentMethod === 'upi'
+                  className={`cursor-pointer rounded-xl border p-4 transition-all ${paymentMethod === 'upi'
                       ? 'border-amber-500 bg-amber-50/50 ring-2 ring-amber-400/50 shadow-md'
                       : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
@@ -885,44 +892,40 @@ export const CheckoutModal: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setSelectedUpiApp('gpay')}
-                          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                            selectedUpiApp === 'gpay'
+                          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${selectedUpiApp === 'gpay'
                               ? 'bg-amber-400 text-slate-950'
                               : 'bg-white border border-slate-200 text-slate-700'
-                          }`}
+                            }`}
                         >
                           <span>Google Pay</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setSelectedUpiApp('phonepe')}
-                          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                            selectedUpiApp === 'phonepe'
+                          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${selectedUpiApp === 'phonepe'
                               ? 'bg-amber-400 text-slate-950'
                               : 'bg-white border border-slate-200 text-slate-700'
-                          }`}
+                            }`}
                         >
                           <span>PhonePe</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setSelectedUpiApp('paytm')}
-                          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                            selectedUpiApp === 'paytm'
+                          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${selectedUpiApp === 'paytm'
                               ? 'bg-amber-400 text-slate-950'
                               : 'bg-white border border-slate-200 text-slate-700'
-                          }`}
+                            }`}
                         >
                           <span>Paytm</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setSelectedUpiApp('id')}
-                          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
-                            selectedUpiApp === 'id'
+                          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${selectedUpiApp === 'id'
                               ? 'bg-amber-400 text-slate-950'
                               : 'bg-white border border-slate-200 text-slate-700'
-                          }`}
+                            }`}
                         >
                           <span>Enter UPI ID</span>
                         </button>
@@ -952,11 +955,10 @@ export const CheckoutModal: React.FC = () => {
                 {/* Payment Option 3: Other Credit / Debit Cards */}
                 <div
                   onClick={() => setPaymentMethod('card')}
-                  className={`cursor-pointer rounded-xl border p-4 transition-all ${
-                    paymentMethod === 'card'
+                  className={`cursor-pointer rounded-xl border p-4 transition-all ${paymentMethod === 'card'
                       ? 'border-amber-500 bg-amber-50/50 ring-2 ring-amber-400/50 shadow-md'
                       : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
@@ -985,11 +987,10 @@ export const CheckoutModal: React.FC = () => {
                 {/* Payment Option 4: Net Banking */}
                 <div
                   onClick={() => setPaymentMethod('netbanking')}
-                  className={`cursor-pointer rounded-xl border p-4 transition-all ${
-                    paymentMethod === 'netbanking'
+                  className={`cursor-pointer rounded-xl border p-4 transition-all ${paymentMethod === 'netbanking'
                       ? 'border-amber-500 bg-amber-50/50 ring-2 ring-amber-400/50 shadow-md'
                       : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
@@ -1035,11 +1036,10 @@ export const CheckoutModal: React.FC = () => {
                 {/* Payment Option 5: Cash on Delivery */}
                 <div
                   onClick={() => setPaymentMethod('cod')}
-                  className={`cursor-pointer rounded-xl border p-4 transition-all ${
-                    paymentMethod === 'cod'
+                  className={`cursor-pointer rounded-xl border p-4 transition-all ${paymentMethod === 'cod'
                       ? 'border-amber-500 bg-amber-50/50 ring-2 ring-amber-400/50 shadow-md'
                       : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
@@ -1211,28 +1211,25 @@ export const CheckoutModal: React.FC = () => {
                     <div key={idx} className="flex items-start gap-3">
                       <div className="flex flex-col items-center">
                         <div
-                          className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                            step.completed
+                          className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${step.completed
                               ? 'bg-emerald-500 text-white'
                               : 'bg-slate-200 text-slate-500'
-                          }`}
+                            }`}
                         >
                           {step.completed ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : idx + 1}
                         </div>
                         {idx < confirmedOrder.trackingSteps.length - 1 && (
                           <div
-                            className={`w-0.5 h-8 my-1 ${
-                              step.completed ? 'bg-emerald-500' : 'bg-slate-200'
-                            }`}
+                            className={`w-0.5 h-8 my-1 ${step.completed ? 'bg-emerald-500' : 'bg-slate-200'
+                              }`}
                           />
                         )}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <p
-                            className={`text-xs font-bold ${
-                              step.completed ? 'text-slate-900' : 'text-slate-500'
-                            }`}
+                            className={`text-xs font-bold ${step.completed ? 'text-slate-900' : 'text-slate-500'
+                              }`}
                           >
                             {step.title}
                           </p>

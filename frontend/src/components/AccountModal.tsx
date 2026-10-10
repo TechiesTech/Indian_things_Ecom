@@ -24,9 +24,20 @@ import {
   Smartphone,
   Building2,
 } from 'lucide-react';
+import axios from 'axios';
 import { useCart } from '../context/CartContext';
 import { Address, PaymentMethod, UserProfile } from '../data/products';
-import { apiClient } from '../api/apiClient';
+
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  headers: { 'Content-Type': 'application/json' },
+});
+
+apiClient.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem('it_user_token') || localStorage.getItem('it_user_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
 export const AccountModal: React.FC = () => {
   const {
@@ -36,6 +47,7 @@ export const AccountModal: React.FC = () => {
     setAccountActiveTab,
     orders,
     addresses,
+    addressesLoading,
     addAddress,
     updateAddress,
     deleteAddress,
@@ -52,10 +64,11 @@ export const AccountModal: React.FC = () => {
   // Address editing state
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
   const [addrForm, setAddrForm] = useState<Omit<Address, 'id'>>({
     fullName: '',
     phone: '',
-    pincode: '500062',
+    pincode: '',
     houseFlat: '',
     streetArea: '',
     landmark: '',
@@ -176,8 +189,8 @@ export const AccountModal: React.FC = () => {
     setEditingAddressId(null);
     setAddrForm({
       fullName: '',
-      phone: '9876543210',
-      pincode: '500062',
+      phone: userProfile.phone || '',
+      pincode: '',
       houseFlat: '',
       streetArea: '',
       landmark: '',
@@ -189,25 +202,36 @@ export const AccountModal: React.FC = () => {
     setAddrError('');
   };
 
-  const handleSaveAddress = (e: React.FormEvent) => {
+  const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addrForm.fullName.trim() || !addrForm.phone.trim() || !addrForm.houseFlat.trim() || !addrForm.streetArea.trim()) {
       setAddrError('Please provide all required address details.');
       return;
     }
-    if (addrForm.phone.replace(/\D/g, '').length < 10) {
-      setAddrError('Please enter a valid 10-digit mobile number.');
+    if (!/^[6-9]\d{9}$/.test(addrForm.phone.trim())) {
+      setAddrError('Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+    if (!/^[1-9]\d{5}$/.test(addrForm.pincode.trim())) {
+      setAddrError('Please enter a valid 6-digit PIN code.');
       return;
     }
 
-    if (editingAddressId) {
-      updateAddress(editingAddressId, addrForm);
-      setEditingAddressId(null);
-    } else if (isAddingNew) {
-      addAddress(addrForm);
-      setIsAddingNew(false);
-    }
+    setIsSavingAddress(true);
     setAddrError('');
+    try {
+      if (editingAddressId) {
+        await updateAddress(editingAddressId, addrForm);
+        setEditingAddressId(null);
+      } else if (isAddingNew) {
+        await addAddress(addrForm);
+        setIsAddingNew(false);
+      }
+    } catch (err) {
+      setAddrError(err instanceof Error ? err.message : 'Failed to save address.');
+    } finally {
+      setIsSavingAddress(false);
+    }
   };
 
   const handleSubmitSupport = (e: React.FormEvent) => {
@@ -264,7 +288,7 @@ export const AccountModal: React.FC = () => {
 
   const handleSavePaymentMethod = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (paymentForm.type === 'card') {
       if (!paymentForm.cardNumber.trim() || !paymentForm.cardHolder.trim() || !paymentForm.cardExpiry.trim()) {
         setPaymentFormError('Please fill in all card details.');
@@ -291,7 +315,7 @@ export const AccountModal: React.FC = () => {
       // For simplicity, we'll delete and re-add
       deletePaymentMethod(editingPaymentMethodId);
     }
-    
+
     addPaymentMethod(paymentForm);
     setIsAddingPaymentMethod(false);
     setEditingPaymentMethodId(null);
@@ -389,13 +413,12 @@ export const AccountModal: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-white">{userProfile.fullName}</h3>
-                <span className={`rounded px-2 py-0.5 text-[10px] font-bold border ${
-                  userProfile.membershipLevel === 'prime' 
-                    ? 'bg-amber-400/20 text-amber-300 border-amber-400/40' 
+                <span className={`rounded px-2 py-0.5 text-[10px] font-bold border ${userProfile.membershipLevel === 'prime'
+                    ? 'bg-amber-400/20 text-amber-300 border-amber-400/40'
                     : userProfile.membershipLevel === 'premium'
-                    ? 'bg-purple-400/20 text-purple-300 border-purple-400/40'
-                    : 'bg-slate-400/20 text-slate-300 border-slate-400/40'
-                }`}>
+                      ? 'bg-purple-400/20 text-purple-300 border-purple-400/40'
+                      : 'bg-slate-400/20 text-slate-300 border-slate-400/40'
+                  }`}>
                   {userProfile.membershipLevel === 'prime' ? 'Prime Member' : userProfile.membershipLevel === 'premium' ? 'Premium' : 'Standard'}
                 </span>
               </div>
@@ -558,11 +581,10 @@ export const AccountModal: React.FC = () => {
         <div className="flex overflow-x-auto border-b border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-600 no-scrollbar">
           <button
             onClick={() => setAccountActiveTab('orders')}
-            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${
-              accountActiveTab === 'orders'
+            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${accountActiveTab === 'orders'
                 ? 'border-amber-500 text-amber-900 bg-white font-black'
                 : 'border-transparent hover:text-slate-900'
-            }`}
+              }`}
           >
             <Package className="h-4 w-4 text-amber-500" />
             <span>Orders Placed So Far ({orders.length})</span>
@@ -570,11 +592,10 @@ export const AccountModal: React.FC = () => {
 
           <button
             onClick={() => setAccountActiveTab('addresses')}
-            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${
-              accountActiveTab === 'addresses'
+            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${accountActiveTab === 'addresses'
                 ? 'border-amber-500 text-amber-900 bg-white font-black'
                 : 'border-transparent hover:text-slate-900'
-            }`}
+              }`}
           >
             <MapPin className="h-4 w-4 text-emerald-600" />
             <span>Delivery Addresses ({addresses.length})</span>
@@ -582,11 +603,10 @@ export const AccountModal: React.FC = () => {
 
           <button
             onClick={() => setAccountActiveTab('support')}
-            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${
-              accountActiveTab === 'support'
+            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${accountActiveTab === 'support'
                 ? 'border-amber-500 text-amber-900 bg-white font-black'
                 : 'border-transparent hover:text-slate-900'
-            }`}
+              }`}
           >
             <Headphones className="h-4 w-4 text-sky-600" />
             <span>24/7 Customer Support</span>
@@ -594,11 +614,10 @@ export const AccountModal: React.FC = () => {
 
           <button
             onClick={() => setAccountActiveTab('returns')}
-            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${
-              accountActiveTab === 'returns'
+            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${accountActiveTab === 'returns'
                 ? 'border-amber-500 text-amber-900 bg-white font-black'
                 : 'border-transparent hover:text-slate-900'
-            }`}
+              }`}
           >
             <RotateCcw className="h-4 w-4 text-rose-600" />
             <span>Return Policy &amp; Replacement</span>
@@ -606,11 +625,10 @@ export const AccountModal: React.FC = () => {
 
           <button
             onClick={() => setAccountActiveTab('payments')}
-            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${
-              accountActiveTab === 'payments'
+            className={`flex items-center gap-2 border-b-2 py-3 px-3 transition-colors shrink-0 ${accountActiveTab === 'payments'
                 ? 'border-amber-500 text-amber-900 bg-white font-black'
                 : 'border-transparent hover:text-slate-900'
-            }`}
+              }`}
           >
             <CreditCard className="h-4 w-4 text-sky-600" />
             <span>Payment Methods ({paymentMethods.length})</span>
@@ -721,9 +739,8 @@ export const AccountModal: React.FC = () => {
                         <div className="space-y-2">
                           {ord.trackingSteps.map((step, sIdx) => (
                             <div key={sIdx} className="flex items-start gap-2.5">
-                              <div className={`mt-0.5 h-3.5 w-3.5 rounded-full flex items-center justify-center shrink-0 ${
-                                step.completed ? 'bg-emerald-500 text-white' : 'bg-slate-300 text-slate-600'
-                              }`}>
+                              <div className={`mt-0.5 h-3.5 w-3.5 rounded-full flex items-center justify-center shrink-0 ${step.completed ? 'bg-emerald-500 text-white' : 'bg-slate-300 text-slate-600'
+                                }`}>
                                 {step.completed && <CheckCircle2 className="h-3 w-3" />}
                               </div>
                               <div className="text-[11px]">
@@ -904,7 +921,16 @@ export const AccountModal: React.FC = () => {
                           checked={addrForm.type === 'Work'}
                           onChange={() => setAddrForm({ ...addrForm, type: 'Work' })}
                         />
-                        <span>Work / Office</span>
+                         <span>Work / Office</span>
+                      </label>
+                      <label className="flex items-center gap-1 text-xs cursor-pointer">
+                        <input
+                          type="radio"
+                          name="accAddrType"
+                          checked={addrForm.type === 'Other'}
+                          onChange={() => setAddrForm({ ...addrForm, type: 'Other' })}
+                        />
+                        <span>Other</span>
                       </label>
                     </div>
 
@@ -921,9 +947,10 @@ export const AccountModal: React.FC = () => {
                   <div className="flex gap-2 pt-2">
                     <button
                       type="submit"
-                      className="flex-1 rounded-lg bg-amber-400 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-xs"
+                      disabled={isSavingAddress}
+                      className="flex-1 rounded-lg bg-amber-400 py-2.5 text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-xs disabled:opacity-50 disabled:cursor-wait"
                     >
-                      {editingAddressId ? 'Save Changes' : 'Add Address'}
+                      {isSavingAddress ? 'Saving...' : editingAddressId ? 'Save Changes' : 'Add Address'}
                     </button>
                     <button
                       type="button"
@@ -937,6 +964,28 @@ export const AccountModal: React.FC = () => {
                     </button>
                   </div>
                 </form>
+              )}
+
+              {/* Empty state */}
+              {addresses.length === 0 && !isAddingNew && !editingAddressId && (
+                <div className="rounded-xl border border-slate-200 bg-white p-10 text-center">
+                  <MapPin className="mx-auto h-12 w-12 text-slate-300" />
+                  <p className="mt-3 text-sm font-bold text-slate-800">
+                    {addressesLoading ? 'Loading your addresses...' : 'No saved addresses yet'}
+                  </p>
+                  {!addressesLoading && (
+                    <>
+                      <p className="mt-1 text-xs text-slate-500">Add your delivery address to start placing orders.</p>
+                      <button
+                        onClick={handleStartAdd}
+                        className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-amber-500 shadow-xs"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span>Add Delivery Address</span>
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
 
               {/* Addresses List with Edit & Delete Options */}
@@ -992,16 +1041,14 @@ export const AccountModal: React.FC = () => {
                         )}
                       </div>
 
-                      {addresses.length > 1 && (
-                        <button
-                          onClick={() => deleteAddress(addr.id)}
-                          className="flex items-center gap-1 text-rose-600 hover:text-rose-700"
-                          title="Delete address"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span>Delete</span>
-                        </button>
-                      )}
+                      <button
+                        onClick={() => deleteAddress(addr.id)}
+                        className="flex items-center gap-1 text-rose-600 hover:text-rose-700"
+                        title="Delete address"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Delete</span>
+                      </button>
                     </div>
                   </div>
                 ))}

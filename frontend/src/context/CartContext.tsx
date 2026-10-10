@@ -1,5 +1,42 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, Address, INITIAL_ADDRESSES, PlacedOrder, OrderItem, PaymentMethod, INITIAL_PAYMENT_METHODS, UserProfile, INITIAL_USER_PROFILE } from '../data/products';
+import axios from 'axios';
+import { Product, Address, PlacedOrder, OrderItem, PaymentMethod, INITIAL_PAYMENT_METHODS, UserProfile, INITIAL_USER_PROFILE } from '../data/products';
+
+// ─── Address API (axios) ─────────────────────────────────────────────────────
+const userApi = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  headers: { 'Content-Type': 'application/json' },
+});
+
+userApi.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem('it_user_token') || localStorage.getItem('it_user_token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Backend address document -> frontend Address
+const mapAddress = (a: any): Address => ({
+  id: a._id,
+  fullName: a.fullName,
+  phone: a.phone,
+  houseFlat: a.houseFlat,
+  streetArea: a.streetArea,
+  landmark: a.landmark || '',
+  city: a.city,
+  state: a.state,
+  pincode: a.pincode,
+  type: a.label === 'Home' || a.label === 'Work' ? a.label : 'Other',
+  isDefault: Boolean(a.isDefault),
+});
+
+// Frontend Address -> backend request body (label = type)
+const toAddressBody = (a: Partial<Omit<Address, 'id'>>) => {
+  const { type, ...rest } = a;
+  return type ? { ...rest, label: type } : rest;
+};
+
+const getApiError = (err: unknown, fallback: string) =>
+  axios.isAxiosError<{ message?: string }>(err) ? err.response?.data?.message || fallback : fallback;
 
 export interface CartItem {
   product: Product;
@@ -30,7 +67,7 @@ interface CartContextType {
   finalTotal: number;
   applyCoupon: (code: string) => { success: boolean; message: string };
   removeCoupon: () => void;
-  
+
   // Checkout & Drawers
   isCartDrawerOpen: boolean;
   setIsCartDrawerOpen: (open: boolean) => void;
@@ -51,12 +88,13 @@ interface CartContextType {
 
   // Addresses CRUD
   addresses: Address[];
+  addressesLoading: boolean;
   activeAddress: Address | null;
   setActiveAddress: (addr: Address) => void;
-  addAddress: (addr: Omit<Address, 'id'>) => Address;
-  updateAddress: (id: string, updated: Partial<Address>) => void;
-  deleteAddress: (id: string) => void;
-  setDefaultAddress: (id: string) => void;
+  addAddress: (addr: Omit<Address, 'id'>) => Promise<Address>;
+  updateAddress: (id: string, updated: Partial<Omit<Address, 'id'>>) => Promise<void>;
+  deleteAddress: (id: string) => Promise<void>;
+  setDefaultAddress: (id: string) => Promise<void>;
   editingAddress: Address | null;
   setEditingAddress: (addr: Address | null) => void;
 
@@ -100,19 +138,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  // Addresses
-  const [addresses, setAddresses] = useState<Address[]>(() => {
-    try {
-      const saved = localStorage.getItem('it_addresses');
-      return saved ? JSON.parse(saved) : INITIAL_ADDRESSES;
-    } catch {
-      return INITIAL_ADDRESSES;
-    }
-  });
-
-  const [activeAddress, setActiveAddress] = useState<Address | null>(() => {
-    return addresses.find((a) => a.isDefault) || addresses[0] || null;
-  });
+  // Addresses — source of truth is the backend (MongoDB), no mock/local data
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [activeAddress, setActiveAddress] = useState<Address | null>(null);
 
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
 
@@ -177,7 +206,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           shipping: 0,
           total: 943,
           paymentMethod: 'UPI (Google Pay)',
-          deliveryAddress: INITIAL_ADDRESSES[0],
+          deliveryAddress: {
+            id: 'ord-demo-addr',
+            fullName: 'Rahul Sharma',
+            phone: '9876543210',
+            pincode: '500062',
+            houseFlat: 'Flat 402, Sai Residency',
+            streetArea: 'Near ECIL Cross Roads, A.S. Rao Nagar',
+            landmark: 'Opposite Heritage Supermarket',
+            city: 'Hyderabad',
+            state: 'Telangana',
+            type: 'Home',
+            isDefault: true,
+          },
           deliveryDate: '23 Sep 2026',
           status: 'Delivered',
           trackingSteps: [
@@ -237,14 +278,29 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [cart]);
 
-  // Sync addresses to localStorage
+  // Load addresses from backend (GET /users/getUserAddresses)
+  const applyServerAddresses = (list: any[]) => {
+    const mapped = list.map(mapAddress);
+    setAddresses(mapped);
+    setActiveAddress((curr) => mapped.find((a) => a.id === curr?.id) || mapped.find((a) => a.isDefault) || mapped[0] || null);
+    return mapped;
+  };
+
   useEffect(() => {
-    try {
-      localStorage.setItem('it_addresses', JSON.stringify(addresses));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [addresses]);
+    if (!sessionStorage.getItem('it_user_token') && !localStorage.getItem('it_user_token')) return;
+    let cancelled = false;
+    setAddressesLoading(true);
+    userApi
+      .get('/users/getUserAddresses')
+      .then((res) => {
+        if (!cancelled && Array.isArray(res.data?.addresses)) applyServerAddresses(res.data.addresses);
+      })
+      .catch((err) => console.warn('Could not load addresses:', getApiError(err, 'request failed')))
+      .finally(() => !cancelled && setAddressesLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [isAccountModalOpen, isCheckoutOpen]);
 
   // Sync orders to localStorage
   useEffect(() => {
@@ -380,60 +436,53 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAppliedCoupon(null);
   };
 
-  // Addresses CRUD
-  const addAddress = (newAddrData: Omit<Address, 'id'>) => {
-    const id = `addr-${Date.now()}`;
-    const newAddr: Address = { ...newAddrData, id };
-    const updated = [newAddr, ...addresses.map((a) => (newAddr.isDefault ? { ...a, isDefault: false } : a))];
-    setAddresses(updated);
-    setActiveAddress(newAddr);
-    showToast('Address Added', `${newAddr.fullName} · ${newAddr.city}`);
-    return newAddr;
-  };
-
-  const updateAddress = (id: string, updatedData: Partial<Address>) => {
-    setAddresses((prev) =>
-      prev.map((addr) => {
-        if (addr.id === id) {
-          const merged = { ...addr, ...updatedData };
-          if (activeAddress?.id === id) {
-            setActiveAddress(merged);
-          }
-          return merged;
-        }
-        if (updatedData.isDefault) {
-          return { ...addr, isDefault: false };
-        }
-        return addr;
-      })
-    );
-    showToast('Address Updated', 'Delivery address details modified successfully');
-  };
-
-  const deleteAddress = (id: string) => {
-    if (addresses.length <= 1) {
-      showToast('Action Denied', 'At least one address must be kept for deliveries');
-      return;
+  // Addresses CRUD — backed by /users/{addUserAddress,updateUserAddress,deleteUserAddress}
+  const addAddress = async (data: Omit<Address, 'id'>) => {
+    try {
+      const res = await userApi.post('/users/addUserAddress', toAddressBody(data));
+      const mapped = applyServerAddresses(res.data.addresses);
+      const created =
+        mapped.find((a) => a.houseFlat === data.houseFlat && a.streetArea === data.streetArea && a.pincode === data.pincode) ||
+        mapped[mapped.length - 1];
+      setActiveAddress(created);
+      showToast('Address Added', `${created.fullName} · ${created.city}`);
+      return created;
+    } catch (err) {
+      throw new Error(getApiError(err, 'Failed to save address. Please try again.'));
     }
-    const filtered = addresses.filter((a) => a.id !== id);
-    setAddresses(filtered);
-    if (activeAddress?.id === id) {
-      setActiveAddress(filtered[0] || null);
-    }
-    showToast('Address Removed', 'Delivery address deleted');
   };
 
-  const setDefaultAddress = (id: string) => {
-    setAddresses((prev) =>
-      prev.map((a) => ({
-        ...a,
-        isDefault: a.id === id,
-      }))
-    );
-    const found = addresses.find((a) => a.id === id);
-    if (found) {
-      setActiveAddress(found);
-      showToast('Default Address Set', `${found.fullName} (${found.type})`);
+  const updateAddress = async (id: string, data: Partial<Omit<Address, 'id'>>) => {
+    try {
+      const res = await userApi.patch(`/users/updateUserAddress/${id}`, toAddressBody(data));
+      applyServerAddresses(res.data.addresses);
+      showToast('Address Updated', 'Delivery address details modified successfully');
+    } catch (err) {
+      throw new Error(getApiError(err, 'Failed to update address. Please try again.'));
+    }
+  };
+
+  const deleteAddress = async (id: string) => {
+    try {
+      const res = await userApi.delete(`/users/deleteUserAddress/${id}`);
+      applyServerAddresses(res.data.addresses);
+      showToast('Address Removed', 'Delivery address deleted');
+    } catch (err) {
+      showToast('Delete Failed', getApiError(err, 'Could not delete address'));
+    }
+  };
+
+  const setDefaultAddress = async (id: string) => {
+    try {
+      const res = await userApi.patch(`/users/updateUserAddress/${id}`, { isDefault: true });
+      const mapped = applyServerAddresses(res.data.addresses);
+      const found = mapped.find((a) => a.id === id);
+      if (found) {
+        setActiveAddress(found);
+        showToast('Default Address Set', `${found.fullName} (${found.type})`);
+      }
+    } catch (err) {
+      showToast('Update Failed', getApiError(err, 'Could not set default address'));
     }
   };
 
@@ -600,6 +649,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         viewingProduct,
         setViewingProduct,
         addresses,
+        addressesLoading,
         activeAddress,
         setActiveAddress,
         addAddress,
