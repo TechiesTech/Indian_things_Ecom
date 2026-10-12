@@ -28,4 +28,4 @@ stateSchema.index({ stateName: 1 }, { unique: true, collation: { locale: 'en', s
 stateSchema.index({ isActive: 1, isOpenForVendors: 1, stateName: 1 });
 stateSchema.index({ isActive: 1, isOpenForCustomers: 1, stateName: 1 });
 
-module.exports = model('State', stateSchema);
+module.exports = model('State', stateSchema, 'states');
