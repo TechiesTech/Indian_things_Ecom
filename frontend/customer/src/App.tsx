@@ -13,6 +13,7 @@ import { AccountModal } from './components/AccountModal';
 import { LoginForm } from './components/LoginForm';
 import { Toast } from './components/Toast';
 import { Footer } from './components/Footer';
+import { useAuth } from './context/AuthContext';
 
 export function DashboardContent() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,20 +63,14 @@ export function DashboardContent() {
 }
 
 function AuthenticatedApp() {
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    () => Boolean(sessionStorage.getItem('it_user_token'))
-  );
+  const { isAuthenticated } = useAuth();
 
-  return isAuthenticated
-    ? <DashboardContent />
-    : <LoginForm onLoginSuccess={() => setIsAuthenticated(true)} />;
+  return isAuthenticated ? <DashboardContent /> : <LoginForm />;
 }
 
 export default function App() {
   return (
     <CartProvider>
-
-
       <AuthenticatedApp />
     </CartProvider>
   );

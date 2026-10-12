@@ -23,9 +23,11 @@ import {
   CreditCard,
   Smartphone,
   Building2,
+  LogOut,
 } from 'lucide-react';
 import axios from 'axios';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { Address, PaymentMethod, UserProfile } from '../data/products';
 
 const apiClient = axios.create({
@@ -60,6 +62,7 @@ export const AccountModal: React.FC = () => {
     userProfile,
     updateUserProfile,
   } = useCart();
+  const { logout } = useAuth();
 
   // Address editing state
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
@@ -431,10 +434,21 @@ export const AccountModal: React.FC = () => {
           <div className="flex items-center gap-2 mt-3 sm:mt-0">
             <button
               onClick={() => setIsEditingProfile(!isEditingProfile)}
-              className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 hover:text-white"
+              className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
             >
               <Edit2 className="h-3.5 w-3.5" />
               <span>{isEditingProfile ? 'Cancel' : 'Edit Profile'}</span>
+            </button>
+            <button
+              onClick={() => {
+                setIsAccountModalOpen(false);
+                logout();
+              }}
+              className="flex items-center gap-1.5 rounded-lg bg-rose-950/60 border border-rose-800 px-3 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-900 hover:text-white transition-colors"
+              title="Sign out of customer account"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Sign Out</span>
             </button>
             <button
               onClick={() => setIsAccountModalOpen(false)}

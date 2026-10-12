@@ -9,9 +9,11 @@ import {
   Package,
   Heart,
   Globe,
-  X
+  X,
+  LogOut
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
   searchQuery: string;
@@ -38,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
     orders,
     userProfile,
   } = useCart();
+  const { logout } = useAuth();
 
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -266,6 +269,21 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>7-Day Return Policy &amp; Refund</span>
                     <span className="text-[10px] font-bold">&gt;</span>
                   </button>
+
+                  <div className="border-t border-slate-200 mt-1 pt-1">
+                    <button
+                      onClick={() => {
+                        setAccountMenuHover(false);
+                        logout();
+                      }}
+                      className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 hover:bg-rose-50 text-left font-semibold text-rose-700 transition-colors"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <LogOut className="h-3.5 w-3.5" />
+                        Sign Out
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
