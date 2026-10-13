@@ -6,7 +6,7 @@ const vendorService = require('../services/vendorService');
 const formatVendorResponse = (v) => ({
   _id: v._id,
   personName: v.personName,
-  phoneNumber: v.phoneNumber,
+  mobile: v.mobile,
   email: v.email,
   companyName: v.companyName,
   companyAddress: v.companyAddress,

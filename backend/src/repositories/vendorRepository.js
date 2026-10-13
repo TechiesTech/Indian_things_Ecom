@@ -21,12 +21,13 @@ const bcrypt = require('bcryptjs');
  * a NEW document was inserted — that's how the service tells "created"
  * apart from "already existed".
  */
-const registerIfNotExists = async ({ email, phoneNumber }, data) => {
+const registerIfNotExists = async ({ email, mobile, phoneNumber }, data) => {
   const hashedPassword = await bcrypt.hash(data.password, 10);
+  const phone = mobile || phoneNumber;
 
   return Vendor.findOneAndUpdate(
-    { $or: [{ email }, { phoneNumber }] },
-    { $setOnInsert: { ...data, password: hashedPassword } },
+    { $or: [{ email }, { mobile: phone }, { phoneNumber: phone }] },
+    { $setOnInsert: { ...data, password: hashedPassword, mobile: phone } },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, rawResult: true }
   );
 };

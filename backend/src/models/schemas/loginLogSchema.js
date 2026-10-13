@@ -39,6 +39,7 @@ const loginLogSchema = new mongoose.Schema(
         'vendor_not_approved',   // vendor pending/rejected
         'user_not_found',        // email not in DB
         'too_many_attempts',     // OTP max attempts exceeded
+        'account_locked',        // too many failed login attempts
         null,
       ],
       default: null,

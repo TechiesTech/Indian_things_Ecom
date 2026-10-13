@@ -12,6 +12,7 @@ const { errorHandler } = require('./middleware/errorMiddleware');
 const authRoutes = require('./routes/authRoutes');
 const vendorRoutes = require('./routes/vendorRoutes');
 const userRoutes = require('./routes/userRoutes');
+const stateRoutes = require('./routes/stateRoutes');
 
 const app = express();
 
@@ -44,6 +45,7 @@ const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { su
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/vendor', vendorRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/states', stateRoutes);
 
 // Base route
 app.get('/', (req, res) => {
