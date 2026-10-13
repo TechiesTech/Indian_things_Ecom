@@ -1,9 +1,8 @@
-const authService  = require('../services/authService');
-const vendorService = require('../services/vendorService');
+const authService = require('../services/authService');
 
 // Extract client info from the request for login logging
 const getMeta = (req) => ({
-  ip:        req.ip || req.headers['x-forwarded-for'] || '',
+  ip: req.ip || req.headers['x-forwarded-for'] || '',
   userAgent: req.headers['user-agent'] || '',
 });
 
@@ -49,8 +48,9 @@ const resetPassword = async (req, res) => {
 // ─── Vendor ───────────────────────────────────────────────────────────────────
 
 const vendorRegister = async (req, res) => {
-  const result = await vendorService.register(req.body);
-  res.status(201).json({ success: true, ...result });
+  const { name, email, mobile } = req.body;
+  const result = await authService.vendorRegister({ name, email, mobile });
+  res.status(200).json({ success: true, ...result });
 };
 
 // ─── Customer ─────────────────────────────────────────────────────────────────

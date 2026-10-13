@@ -20,6 +20,7 @@ const OTP_PURPOSE = Object.freeze({
   ADMIN_REGISTER: 'admin_register',
   RESET_PASSWORD: 'reset_password',
   CUSTOMER_LOGIN: 'customer_login',
+  VENDOR_REGISTER: 'vendor_register',
 });
 
 // OTP expires after 10 minutes
