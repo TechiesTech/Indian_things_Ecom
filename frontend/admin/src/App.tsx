@@ -5,6 +5,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { NotAuthorizedPage } from './pages/NotAuthorizedPage';
 import { AdminRoute } from './routes/AdminRoute';
 import { StatesPage } from './pages/admin/StatesPage';
+import { StateDetailsPage } from './pages/admin/StateDetailsPage';
 
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
         <Route element={<AdminRoute />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/admin/states" element={<StatesPage />} />
+          <Route path="/admin/states/:stateCode" element={<StateDetailsPage />} />
           <Route path="/admin" element={<Navigate to="/admin/states" replace />} />
         </Route>
 

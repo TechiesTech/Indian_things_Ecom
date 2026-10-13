@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   MapPin,
@@ -546,14 +547,13 @@ export const StatesPage = () => {
                         {/* Actions (View, Delete) */}
                         <td className="px-5 py-4 whitespace-nowrap text-right">
                           <div className="inline-flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setViewingStateCode(item.stateCode)}
-                              className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-200 hover:text-slate-900 transition-colors cursor-pointer"
-                              title="View full record and audit logs"
+                            <Link
+                              to={`/admin/states/${encodeURIComponent(item.stateCode)}`}
+                              className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-200 hover:text-slate-900 transition-colors inline-flex items-center cursor-pointer"
+                              title="View details and manage districts"
                             >
                               <Eye className="h-4 w-4" />
-                            </button>
+                            </Link>
 
                             <button
                               type="button"

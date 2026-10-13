@@ -114,3 +114,87 @@ export const deleteState = async (stateCode) => {
   const response = await api.delete(`/states/deleteState/${encodeURIComponent(stateCode.trim().toUpperCase())}`);
   return unwrap(response);
 };
+
+/**
+ * Add one or more districts to an existing state.
+ * Endpoint: POST /api/states/addDistrict/:stateCode
+ * @param {string} stateCode - e.g. "TS"
+ * @param {string[]|string} districtNames - Array of district names e.g. ["Adilabad", "Karimnagar"]
+ * @returns {Promise<object>} Updated state or creation response
+ */
+export const addDistricts = async (stateCode, districtNames) => {
+  if (!stateCode) throw new Error('State code is required');
+
+  const namesList = Array.isArray(districtNames)
+    ? districtNames.map((n) => String(n).trim()).filter(Boolean)
+    : [String(districtNames).trim()].filter(Boolean);
+
+  // ADAPT: If your backend accepts { districtName: "..." } for single additions
+  // or { districtNames: [...] } for bulk additions, verify payload key:
+  const payload = {
+    districtNames: namesList,
+  };
+
+  const response = await api.post(
+    `/states/addDistrict/${encodeURIComponent(stateCode.trim().toUpperCase())}`,
+    payload
+  );
+  return unwrap(response);
+};
+
+/**
+ * Update an existing district in a state (rename or activate/deactivate).
+ * Endpoint: PATCH /api/states/updateDistrict/:stateCode/:districtName
+ * Sends ONLY the fields that changed (e.g. { isActive: false } or { newDistrictName: "Secunderabad" })
+ *
+ * @param {string} stateCode - e.g. "TS"
+ * @param {string} districtName - Current name of the district e.g. "Hyderabad"
+ * @param {object} body - { newDistrictName?: string, isActive?: boolean }
+ * @returns {Promise<object>} Updated state or district record
+ */
+export const updateDistrict = async (stateCode, districtName, body = {}) => {
+  if (!stateCode) throw new Error('State code is required');
+  if (!districtName) throw new Error('District name is required');
+
+  // Strict constraint: only send fields that are explicitly provided
+  const payload = {};
+  if ('isActive' in body) {
+    payload.isActive = Boolean(body.isActive);
+  }
+  if ('newDistrictName' in body && body.newDistrictName !== undefined) {
+    payload.newDistrictName = String(body.newDistrictName).trim();
+  }
+
+  // ADAPT: If your backend uses PUT instead of PATCH, adjust method here
+  const encodedCode = encodeURIComponent(stateCode.trim().toUpperCase());
+  const encodedName = encodeURIComponent(districtName.trim());
+
+  const response = await api.patch(
+    `/states/updateDistrict/${encodedCode}/${encodedName}`,
+    payload
+  );
+  return unwrap(response);
+};
+
+/**
+ * Delete a district from a state.
+ * Endpoint: DELETE /api/states/deleteDistrict/:stateCode/:districtName
+ *
+ * @param {string} stateCode - e.g. "TS"
+ * @param {string} districtName - District name to delete e.g. "Warangal"
+ * @returns {Promise<object>} Deletion confirmation response
+ */
+export const deleteDistrict = async (stateCode, districtName) => {
+  if (!stateCode) throw new Error('State code is required');
+  if (!districtName) throw new Error('District name is required');
+
+  const encodedCode = encodeURIComponent(stateCode.trim().toUpperCase());
+  const encodedName = encodeURIComponent(districtName.trim());
+
+  // ADAPT: If your backend uses query param instead of route param (e.g. ?name=...)
+  const response = await api.delete(
+    `/states/deleteDistrict/${encodedCode}/${encodedName}`
+  );
+  return unwrap(response);
+};
+
